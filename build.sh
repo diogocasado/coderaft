@@ -91,6 +91,14 @@ else
 	exit 2
 fi
 
+if [ -z "$CPU" ]; then
+	CPUS=$(lscpu | awk '/^CPU\(s\):/ { print $2 }')
+fi
+
+if [ -z "$MEM" ]; then
+	MEM=$(free | awk '/^Mem:/ { printf "%.0f%c", ($2>900000 ? $2/1000000 : $2/1000), ($2>900000 ? "G" : "M") }')
+fi
+
 echo "Platform: $PLAT_DESC"
 echo "Size: $CPUS vCPU, $MEM"
 
@@ -125,6 +133,8 @@ for PKG in $PKGS; do
 	if [ -f "$PKG_FILE" ]; then
 		. "$PKG_FILE"
 	fi
+	
+	eval "${PKG^^}=1"
 done
 
 for PKG in $PKGS; do

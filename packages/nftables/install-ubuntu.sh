@@ -5,6 +5,11 @@ if [ -z "$RAFT" ]; then
 	exit 1
 fi
 
+if [ $DIST_VER_MAJOR -lt 22 ]; then
+	echo "(Error) Requires Ubuntu 22 or more recent."
+	exit 2
+fi
+
 if [ -z $(command -v nft) ]; then
 	echo "(Error) Command nft not found"
 	exit 2
