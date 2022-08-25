@@ -3,17 +3,31 @@
 #set -x
 
 PATH=$(. /etc/environment; echo $PATH)
+HOME="/root"
 TMPDIR="/tmp"
 
 OLD_PWD=$(pwd)
 BASE_PATH=$(cd $(dirname "$0"); pwd)
+
+if [ "$EUID" != "0" ]; then
+	echo "Requires root. Sorry."
+	exit 1
+fi
 
 PLATFORM_DIR="${BASE_PATH}/platforms"
 DIST_DIR="${BASE_PATH}/dists"
 RAFT_DIR="${BASE_PATH}/rafts"
 PKG_DIR="${BASE_PATH}/packages"
 
-if [ $# -lt 2 ]; then
+LOCAL_FILE="${BASE_PATH}/raft.conf"
+
+if [ -f "$LOCAL_FILE" ]; then
+	. $LOCAL_FILE
+	echo "Using local $LOCAL_FILE"
+	SKIP_USAGE=1
+fi
+
+if [ -z "$SKIP_USAGE" ] && [ $# -lt 2 ]; then
 
 cat <<EOF 
 
@@ -51,8 +65,23 @@ EOF
 	exit 0
 fi
 
-PLATFORM=$1
-RAFT=$2
+if [ -z "$PLATFORM" ]; then
+	PLATFORM=$1
+fi
+
+if [ -z "$PLATFORM" ]; then
+	echo "(Error) Please provide PLATFORM. Check usage for options."
+	exit 1
+fi
+
+if [ -z "$RAFT" ]; then
+        RAFT=$1
+fi
+
+if [ -z "$RAFT" ]; then
+	echo "(Error) Please provide RAFT. Check usage for options."
+	exit 1
+fi
 
 cd "$BASE_PATH"
 
@@ -155,8 +184,44 @@ for PKG in $PKGS; do
 	if [ ! -z "$PKG_INSTALL_FILE" ]; then
 		cd "$PKG_INSTALL_DIR"
 		(. "$PKG_INSTALL_FILE")
+
+		if [ ! $? -eq 0 ]; then
+			echo "(Error) Please check history."
+			exit $?
+		else
+			echo "Done."
+		fi
 	else
 		echo "(Warning) No install script found for package ${PKG}."
+	fi
+done
+
+for PKG in $PKGS; do
+
+	PKG_FINISH_DIR="${PKG_DIR}/${PKG}"
+	PKG_FINISH_SCRIPT="${PKG_DIR}/${PKG}/finish"
+	PKG_FINISH_FILES=("${PKG_FINISH_SCRIPT}-${DIST_ID}${DIST_VER_MAJOR}.sh" "${PKG_FINISH_SCRIPT}-${DIST_ID}.sh" "${PKG_FINISH_SCRIPT}.sh")
+	PKG_FINISH_FILE=
+
+	for FILE in ${PKG_FINISH_FILES[@]}; do
+		if [ -f "$FILE" ]; then
+			PKG_FINISH_FILE=$FILE
+			break
+		fi
+	done
+
+	if [ ! -z "$PKG_FINISH_FILE" ]; then
+		echo "== Finish $PKG"
+
+		cd "$PKG_FINISH_DIR"
+		(. "$PKG_FINISH_FILE")
+
+		if [ ! $? -eq 0 ]; then
+			echo "(Error) Please check history."
+			exit $?
+		else
+			echo "Done."
+		fi
 	fi
 done
 

@@ -35,4 +35,3 @@ else
 fi
 
 rm $NFTABLES_CONF_TMPFILE
-echo "Done"

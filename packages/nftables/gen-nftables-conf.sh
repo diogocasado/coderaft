@@ -87,7 +87,16 @@ cat <<EOF
 		icmpv6 type echo-request goto in_icmp
 
 		meta nfproto ipv4 tcp dport 22 ct state new goto in_ssh
+EOF
 
+if [ ! -z $HTTPSVC ]; then
+cat <<EOF
+		tcp dport 80 accept
+		tcp dport 443 accept
+EOF
+fi
+
+cat <<EOF
 		ct state related,established accept
 	}
 
