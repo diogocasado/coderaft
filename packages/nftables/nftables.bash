@@ -123,7 +123,7 @@ nftables_gen_conf () {
 	        chain in_ssh {
 	                limit rate 5/minute burst 3 packets accept;
 	                add @ban_v4 { ip saddr timeout 1h };
-	                log prefix "bftables[in_ssh] ban "
+	                log prefix "nftables[in_ssh] ban "
 	                drop;
 	        }
 	}

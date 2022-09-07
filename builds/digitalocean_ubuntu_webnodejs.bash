@@ -32,28 +32,50 @@ if [ $EUID != 0 ]; then
 	exit 1
 fi
 
+VERBOSE=0
 PROMPT=1
 CONFIRM_PROMT=()
-VERBOSE=1
+
+COLOR_DEBUG="36"
+COLOR_WARN="33"
+COLOR_ERROR="31"
+COLOR_FILE="35"
+COLOR_PROMPT="34 47"
+
+log_color () {
+	for C in "$@"; do
+		echo -ne "\e[${C}m"
+	done
+}
 
 log_debug () {
 	if [ $VERBOSE -gt 0 ]; then
+		log_color $COLOR_DEBUG
 		echo "(Debug) $@"
+		log_color 0
 	fi
 }
+
 log_debug_file () {
 	if [ $VERBOSE -gt 0 ]; then
+		log_color $COLOR_DEBUG
 		echo "(Debug) Listing file $1"
+		log_color $COLOR_FILE
 		cat $1
+		log_color 0
 	fi
 }
 
 log_warn () {
+	log_color $COLOR_WARN
 	echo "(Warning) $@"
+	log_color 0
 }
 
 log_error () {
+	log_color $COLOR_ERROR
 	echo "(Error) $@"
+	log_color 0
 	exit 1
 }
 
@@ -61,9 +83,20 @@ prompt_input () {
 	CONFIRM_PROMPT+=("$2:${1% (*}")
 
 	if [ $PROMPT -gt 0 ]; then
+		log_color $COLOR_PROMPT
 		while [ -z ${!2} ]; do
-			read -p "$1: " $2
+			read -rp "$1: " $2
+			if [ ! -z "$3" ]; then
+				if [ "$3" != "null" ] && [ -z "${!2}" ]; then
+					local -n VAR="$2"
+					VAR="$3"
+				fi
+				break
+			fi
+
 		done
+		log_color 0
+		echo -ne "\e[2K"
 	fi
 }
 
@@ -82,6 +115,13 @@ print_raft () {
 	EOF
 }
 
+print_greet () {
+	log_color 34
+	echo "Coderaft - VPS server configurator"
+	echo "https://github.com/diogocasado/coderaft"
+	log_color 0
+}
+
 invoke_func () {
 	if [ ! -z "$(type -t $1)" ]; then
 		log_debug "Invoke $1"
@@ -90,20 +130,15 @@ invoke_func () {
 }
 
 bootstrap () {
-
 	print_raft
+	print_greet
 
-	invoke_func "dist_init"
+	CPUS=$(lscpu | awk '/^CPU\(s\):/ { print $2 }')
+	MEM=$(free | awk '/^Mem:/ { printf "%.0f%c", ($2>900000 ? $2/1000000 : $2/1000), ($2>900000 ? "G" : "M") }')
+
 	invoke_func "platform_init"
+	invoke_func "dist_init"
 	invoke_func "raft_init"
-
-	if [ -z "$CPU" ]; then
-		CPUS=$(lscpu | awk '/^CPU\(s\):/ { print $2 }')
-	fi
-
-	if [ -z "$MEM" ]; then
-		MEM=$(free | awk '/^Mem:/ { printf "%.0f%c", ($2>900000 ? $2/1000000 : $2/1000), ($2>900000 ? "G" : "M") }')
-	fi
 
 	echo "Platform: $PLAT_DESC"
 	echo "Size: $CPUS vCPU, $MEM"
@@ -111,19 +146,26 @@ bootstrap () {
 	echo "Raft: $RAFT_ID"
 	echo "Packages: $PKGS"
 
+	invoke_func "platform_setup"
+	invoke_func "dist_setup"
+	invoke_func "raft_setup"
+
 	for PKG in $PKGS; do
 		invoke_func "${PKG,,}_setup"
 		invoke_func "${PKG,,}_setup_${DIST_ID}"
 	done
 
-	echo "Please review:"
 	log_debug "Prompts are ${CONFIRM_PROMPT[@]}"
+
+	echo "Please review:"
+	log_color 0 32
 	for PAIR in "${CONFIRM_PROMPT[@]}"; do
 		DESC="${PAIR#*:}"
 		VAR="${PAIR%:*}"
 		echo "$DESC: ${!VAR}"
 	done
-		read -p "Continue? (y/N): " CONTINUE && [[ $CONTINUE == [yY] || $CONTINUE == [yY][eE][sS] ]] || exit 1
+	log_color 0
+	read -p "Continue? (y/N): " CONTINUE && [[ $CONTINUE == [yY] || $CONTINUE == [yY][eE][sS] ]] || exit 1
 
 	for PKG in $PKGS; do
 		echo "== Install $PKG"
@@ -153,7 +195,7 @@ dist_init () {
 	DIST_VER_MAJOR=$(echo $DIST_VER | awk 'match($0, /([0-9]*)\./, m) { print m[1] }')
 	DIST_VER_MINOR=$(echo $DIST_VER | awk 'match($0, /[0-9]*\.([0-9]*)/, m) { print m[1] }')
 }
-# digitalocean.bash 3513b4bd 
+# digitalocean.bash 305013d6 
 
 PLAT_ID=do
 PLAT_DESC="DigitalOcean (https://digitalocean.com)"
@@ -161,6 +203,9 @@ PLAT_DESC="DigitalOcean (https://digitalocean.com)"
 VLAN_IFACE="eth0"
 VLAN_SUBNET="10.132.0.0/16"
 
+platform_setup () {
+	prompt_input "DigitalOcean Token" DO_TOKEN null
+}
 # webnodejs.bash c8b25cdf 
 # vim: set syntax=sh
 
@@ -170,7 +215,7 @@ PKGS="nftables nginx letsencrypt"
 #PKGS="mongodb nodejs pm2"
 ADDONS=github
 
-# nftables.bash ae2ada27 
+# nftables.bash 41af07be 
 
 FWEND=nftables
 
@@ -296,7 +341,7 @@ nftables_gen_conf () {
 	        chain in_ssh {
 	                limit rate 5/minute burst 3 packets accept;
 	                add @ban_v4 { ip saddr timeout 1h };
-	                log prefix "bftables[in_ssh] ban "
+	                log prefix "nftables[in_ssh] ban "
 	                drop;
 	        }
 	}
@@ -452,7 +497,7 @@ nginx_install () {
 	fi
 }
 NGINX=1
-# letsencrypt.bash 27ff950c 
+# letsencrypt.bash 3df53d6f 
 
 SSLCERT=letsencrypt
 
@@ -478,6 +523,7 @@ letsencrypt_setup () {
 	if [ -z "$CERT_EMAIL" ]; then
 		log_error "Please provide CERT_EMAIL=realemail@domain.tld"
 	fi
+
 
 	if [ -z $(command -v snap) ]; then
 		log_error "Command snap not found"
@@ -529,7 +575,7 @@ letsencrypt_install () {
 	if [ "$PLAT_ID" = "do" ]; then
 
 		if [ -z "$DO_TOKEN" ]; then
-			echo "(Warning) You should provide DO_TOKEN for automated DNS validation"
+			log_warn "You can provide DO_TOKEN for automated DNS validation"
 		else
 			echo "Using DigitalOcean API for DNS validation"
 			CREDENTIALS_FILE="/root/.certbot_digitalocean.ini"

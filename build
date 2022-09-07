@@ -18,21 +18,6 @@ RAFT_FILES=$(ls -1 $RAFT_DIR)
 
 COMMIT=$(git rev-parse --short HEAD)
 
-build_print_raft () {
-	cat <<-EOF 
-	       I\\
-	       I \\
-	       I  \\
-	       I*--\\
-	       I  x \\
-	       I 404 \\
-	       I______\\
-	 ______I_________
-	 \\  \\        \\  \\  ^  ^
-	 ^^^^^^^^^^^^^^^^^    ^
-	EOF
-}
-
 build_print_platforms () {
 
 	for PLATFORM_FILE in ${PLATFORM_FILES[@]}; do
@@ -59,7 +44,6 @@ build_print_rafts () {
 }
 
 build_print_usage () {
-
 	echo -e "\nUsage: $(basename $0) platform raft"
 
 	echo -e "\nPlatforms"
@@ -121,7 +105,6 @@ build_echo_func () {
 }
 
 build_script () {
-
 	local PLATFORM=$1
 	local DIST=$2
 	local RAFT=$3
@@ -155,6 +138,9 @@ build_script () {
 	echo "bootstrap" >> $BUILD_TMPFILE
 
 	cp $BUILD_TMPFILE $BUILD_FILE
+	echo "Wrote $BUILD_FILE"
+
+	git add $BUILD_FILE
 }
 
 cd "$BASE_PATH"
@@ -166,4 +152,3 @@ fi
 build_script $1 $2 $3
 
 cd "$OLD_PWD"
-

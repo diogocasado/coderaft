@@ -24,6 +24,7 @@ letsencrypt_setup () {
 		log_error "Please provide CERT_EMAIL=realemail@domain.tld"
 	fi
 
+
 	if [ -z $(command -v snap) ]; then
 		log_error "Command snap not found"
 	fi
@@ -74,7 +75,7 @@ letsencrypt_install () {
 	if [ "$PLAT_ID" = "do" ]; then
 
 		if [ -z "$DO_TOKEN" ]; then
-			echo "(Warning) You should provide DO_TOKEN for automated DNS validation"
+			log_warn "You can provide DO_TOKEN for automated DNS validation"
 		else
 			echo "Using DigitalOcean API for DNS validation"
 			CREDENTIALS_FILE="/root/.certbot_digitalocean.ini"
