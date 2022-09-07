@@ -1,0 +1,169 @@
+#!/usr/bin/bash
+
+#set -x
+
+OLD_PWD=$(pwd)
+BASE_PATH=$(cd $(dirname "$0"); pwd)
+
+BUILD_DIR="${BASE_PATH}/builds"
+
+PLATFORM_DIR="${BASE_PATH}/platforms"
+DIST_DIR="${BASE_PATH}/dists"
+RAFT_DIR="${BASE_PATH}/rafts"
+PKG_DIR="${BASE_PATH}/packages"
+
+PLATFORM_FILES=$(ls -1 $PLATFORM_DIR)
+DIST_FILES=$(ls -1 $DIST_DIR)
+RAFT_FILES=$(ls -1 $RAFT_DIR)
+
+COMMIT=$(git rev-parse --short HEAD)
+
+build_print_raft () {
+	cat <<-EOF 
+	       I\\
+	       I \\
+	       I  \\
+	       I*--\\
+	       I  x \\
+	       I 404 \\
+	       I______\\
+	 ______I_________
+	 \\  \\        \\  \\  ^  ^
+	 ^^^^^^^^^^^^^^^^^    ^
+	EOF
+}
+
+build_print_platforms () {
+
+	for PLATFORM_FILE in ${PLATFORM_FILES[@]}; do
+		local PLATFORM_NAME=${PLATFORM_FILE%%.*}
+		local PLATFORM_DESC=$(. $PLATFORM_DIR/$PLATFORM_FILE > /dev/null 2>&1; echo $PLAT_DESC )
+		echo $PLATFORM_NAME: $PLATFORM_DESC
+	done
+}
+
+build_print_dists () {
+	for DIST_FILE in ${DIST_FILES[@]}; do
+		local DIST_NAME=${DIST_FILE%%.*}
+		local DIST_DESC=$(. $DIST_DIR/$DIST_FILE > /dev/null 2>&1; echo $DIST_DESC )
+		echo $DIST_NAME: $DIST_DESC
+	done
+}
+
+build_print_rafts () {
+	for RAFT_FILE in ${RAFT_FILES[@]}; do
+		local RAFT_NAME=${RAFT_FILE%%.*}
+		local RAFT_DESC=$(. $RAFT_DIR/$RAFT_FILE > /dev/null 2>&1; echo $RAFT_DESC )
+		echo $RAFT_NAME: $RAFT_DESC
+	done
+}
+
+build_print_usage () {
+
+	echo -e "\nUsage: $(basename $0) platform raft"
+
+	echo -e "\nPlatforms"
+	build_print_platforms
+
+	echo -e "\nDistributions"
+	build_print_dists
+
+	echo -e "\nRafts"
+	build_print_rafts
+
+	echo
+	exit 0
+}
+
+build_echo_file_raw () {
+	local FILE=$1
+	echo "Read $FILE"
+	if [ -f "$FILE" ]; then
+		cat $FILE | awk "$2{print}" >> $BUILD_TMPFILE
+	else
+		echo "(Error) Unable to find file $FILE"
+		exit 2
+	fi
+}
+
+build_echo_file_comment () {
+	local FILE=$1
+	echo "Read $FILE"
+	if [ -f "$FILE" ]; then
+		cat $FILE | awk '{print "# "$0}' >> $BUILD_TMPFILE
+	else
+		echo "(Error) Unable to find file $FILE"
+		exit 2
+	fi
+}
+
+
+build_echo_file () {
+	for FILE in "$@"; do
+		echo "Read $FILE"
+		if [ -f "$FILE" ]; then
+			local FILE_HASH=$(sha256sum < $FILE)
+			echo "# ${FILE##*/} ${FILE_HASH:0:8} " >> $BUILD_TMPFILE
+			cat $FILE >> $BUILD_TMPFILE
+			local FOUND=1
+		else
+			if [ -z "$FOUND" ]; then
+				echo "(Error) Unable to find file $FILE"
+				exit 2
+			fi
+		fi
+	done
+}
+
+build_echo_func () {
+	local FUNC=$(type $1)
+	echo "$FUNC" | awk '/^{/{body=1;next} /^}/{body=0;next} {if (body) print}' >> $BUILD_TMPFILE
+}
+
+build_script () {
+
+	local PLATFORM=$1
+	local DIST=$2
+	local RAFT=$3
+
+	local BUILD_TMPFILE=$(mktemp -t coderaft.build.XXXX)
+	local BUILD_FILE="${BUILD_DIR}/${PLATFORM,,}_${DIST,,}_${RAFT,,}.bash"
+
+	build_echo_file_raw "${BASE_PATH}/bootstrap.bash" "NR==1"
+	build_echo_file_comment "${BASE_PATH}/LICENSE"
+	build_echo_file_raw "${BASE_PATH}/bootstrap.bash" "NR>1"
+
+	local DIST_FILE="${DIST_DIR}/${DIST,,}.bash"
+	. $DIST_FILE
+	build_echo_file $DIST_FILE
+
+	local PLATFORM_FILE="${PLATFORM_DIR}/${PLATFORM,,}.bash"
+	. $PLATFORM_FILE
+	build_echo_file $PLATFORM_FILE
+
+	RAFT_FILE="${RAFT_DIR}/${RAFT,,}.bash"
+	. $RAFT_FILE
+	build_echo_file $RAFT_FILE
+
+	for PKG in $PKGS; do
+		local PKG_FILE="${PKG_DIR}/${PKG}/${PKG}"
+		local PKG_FILES="${PKG_FILE}.bash ${PKG_FILE}-${DIST_ID}.bash"
+		build_echo_file $PKG_FILES
+		echo "${PKG^^}=1" >> $BUILD_TMPFILE
+	done
+
+	echo "bootstrap" >> $BUILD_TMPFILE
+
+	cp $BUILD_TMPFILE $BUILD_FILE
+}
+
+cd "$BASE_PATH"
+
+if [ $# -lt 3 ]; then
+	build_print_usage
+fi
+
+build_script $1 $2 $3
+
+cd "$OLD_PWD"
+

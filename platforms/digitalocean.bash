@@ -1,4 +1,3 @@
-# vim: set syntax=sh
 
 PLAT_ID=do
 PLAT_DESC="DigitalOcean (https://digitalocean.com)"
