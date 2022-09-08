@@ -1,4 +1,4 @@
-#!/usr/bin/env -iS /bin/bash --noprofile --norc
+#!/bin/bash
 
 #set -x
 
@@ -15,46 +15,52 @@ VERBOSE=0
 PROMPT=1
 CONFIRM_PROMT=()
 
-COLOR_DEBUG="36"
-COLOR_WARN="33"
-COLOR_ERROR="31"
-COLOR_FILE="35"
-COLOR_PROMPT="34 47"
+if [ ! -z "$(command -v tput)" ]; then
+	NCOLORS=$(tput colors)
+	if [ $NCOLORS -ge 8 ]; then
+		BOLD="$(tput bold)"
+		UNDERLINE="$(tput smul)"
+		STANDOUT="$(tput smso)"
+		NORMAL="$(tput sgr0)"
+		BLACK="$(tput setaf 0)"
+		RED="$(tput setaf 1)"
+		GREEN="$(tput setaf 2)"
+		YELLOW="$(tput setaf 3)"
+		BLUE="$(tput setaf 4)"
+		MAGENTA="$(tput setaf 5)"
+		CYAN="$(tput setaf 6)"
+		WHITE="$(tput setaf 7)"
+		_BLACK="$(tput setab 0)"
+		_RED="$(tput setab 1)"
+		_GREEN="$(tput setab 2)"
+		_YELLOW="$(tput setab 3)"
+		_BLUE="$(tput setab 4)"
+		_MAGENTA="$(tput setab 5)"
+		_CYAN="$(tput setab 6)"
+		_WHITE="$(tput setab 7)"
+	fi
+fi
 
-log_color () {
-	for C in "$@"; do
-		echo -ne "\e[${C}m"
-	done
-}
-
-log_debug () {
+log_debug() {
 	if [ $VERBOSE -gt 0 ]; then
-		log_color $COLOR_DEBUG
-		echo "(Debug) $@"
-		log_color 0
+		echo "${CYAN}(Debug) $@ ${NORMAL}"
 	fi
 }
 
 log_debug_file () {
 	if [ $VERBOSE -gt 0 ]; then
-		log_color $COLOR_DEBUG
-		echo "(Debug) Listing file $1"
-		log_color $COLOR_FILE
+		echo "${CYAN}(Debug) Listing file $1 ${MAGENTA}"
 		cat $1
-		log_color 0
+		echo "${NORMAL}"
 	fi
 }
 
 log_warn () {
-	log_color $COLOR_WARN
-	echo "(Warning) $@"
-	log_color 0
+	echo "${YELLOW}(Warning) $@ ${NORMAL}"
 }
 
 log_error () {
-	log_color $COLOR_ERROR
-	echo "(Error) $@"
-	log_color 0
+	echo "${RED}(Error) $@ ${NORMAL}"
 	exit 1
 }
 
@@ -62,7 +68,7 @@ prompt_input () {
 	CONFIRM_PROMPT+=("$2:${1% (*}")
 
 	if [ $PROMPT -gt 0 ]; then
-		log_color $COLOR_PROMPT
+		echo -n "${BLUE}${_WHITE}"
 		while [ -z ${!2} ]; do
 			read -rp "$1: " $2
 			if [ ! -z "$3" ]; then
@@ -74,7 +80,7 @@ prompt_input () {
 			fi
 
 		done
-		log_color 0
+		echo -n "${NORMAL}"
 		echo -ne "\e[2K"
 	fi
 }
@@ -95,10 +101,10 @@ print_raft () {
 }
 
 print_greet () {
-	log_color 34
+	echo -n "${BLUE}"
 	echo "Coderaft - VPS server configurator"
 	echo "https://github.com/diogocasado/coderaft"
-	log_color 0
+	echo -n "${NORMAL}"
 }
 
 invoke_func () {
@@ -136,18 +142,17 @@ bootstrap () {
 
 	log_debug "Prompts are ${CONFIRM_PROMPT[@]}"
 
-	echo "Please review:"
-	log_color 0 32
+	echo "Please review:${GREEN}"
 	for PAIR in "${CONFIRM_PROMPT[@]}"; do
 		DESC="${PAIR#*:}"
 		VAR="${PAIR%:*}"
 		echo "$DESC: ${!VAR}"
 	done
-	log_color 0
+	echo -n "${NORMAL}"
 	read -p "Continue? (y/N): " CONTINUE && [[ $CONTINUE == [yY] || $CONTINUE == [yY][eE][sS] ]] || exit 1
 
 	for PKG in $PKGS; do
-		echo "== Install $PKG"
+		echo "${BLUE}== Install $PKG ${NORMAL}"
 		invoke_func "${PKG,,}_install"
 		invoke_func "${PKG,,}_install_${DIST_ID}"
 	done

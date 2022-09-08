@@ -1,5 +1,5 @@
 
-nginx_install () {
+nginx_install_ubuntu () {
 	echo "Probing nginx..."
 	NGINX_VER=$(nginx_get_ver)
 

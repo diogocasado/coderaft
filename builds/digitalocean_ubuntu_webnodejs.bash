@@ -1,4 +1,4 @@
-#!/usr/bin/env -iS /bin/bash --noprofile --norc
+#!/bin/bash
 # MIT License
 # 
 # Copyright (c) 2022 Diogo Casado
@@ -36,46 +36,52 @@ VERBOSE=0
 PROMPT=1
 CONFIRM_PROMT=()
 
-COLOR_DEBUG="36"
-COLOR_WARN="33"
-COLOR_ERROR="31"
-COLOR_FILE="35"
-COLOR_PROMPT="34 47"
+if [ ! -z "$(command -v tput)" ]; then
+	NCOLORS=$(tput colors)
+	if [ $NCOLORS -ge 8 ]; then
+		BOLD="$(tput bold)"
+		UNDERLINE="$(tput smul)"
+		STANDOUT="$(tput smso)"
+		NORMAL="$(tput sgr0)"
+		BLACK="$(tput setaf 0)"
+		RED="$(tput setaf 1)"
+		GREEN="$(tput setaf 2)"
+		YELLOW="$(tput setaf 3)"
+		BLUE="$(tput setaf 4)"
+		MAGENTA="$(tput setaf 5)"
+		CYAN="$(tput setaf 6)"
+		WHITE="$(tput setaf 7)"
+		_BLACK="$(tput setab 0)"
+		_RED="$(tput setab 1)"
+		_GREEN="$(tput setab 2)"
+		_YELLOW="$(tput setab 3)"
+		_BLUE="$(tput setab 4)"
+		_MAGENTA="$(tput setab 5)"
+		_CYAN="$(tput setab 6)"
+		_WHITE="$(tput setab 7)"
+	fi
+fi
 
-log_color () {
-	for C in "$@"; do
-		echo -ne "\e[${C}m"
-	done
-}
-
-log_debug () {
+log_debug() {
 	if [ $VERBOSE -gt 0 ]; then
-		log_color $COLOR_DEBUG
-		echo "(Debug) $@"
-		log_color 0
+		echo "${CYAN}(Debug) $@ ${NORMAL}"
 	fi
 }
 
 log_debug_file () {
 	if [ $VERBOSE -gt 0 ]; then
-		log_color $COLOR_DEBUG
-		echo "(Debug) Listing file $1"
-		log_color $COLOR_FILE
+		echo "${CYAN}(Debug) Listing file $1 ${MAGENTA}"
 		cat $1
-		log_color 0
+		echo "${NORMAL}"
 	fi
 }
 
 log_warn () {
-	log_color $COLOR_WARN
-	echo "(Warning) $@"
-	log_color 0
+	echo "${YELLOW}(Warning) $@ ${NORMAL}"
 }
 
 log_error () {
-	log_color $COLOR_ERROR
-	echo "(Error) $@"
-	log_color 0
+	echo "${RED}(Error) $@ ${NORMAL}"
 	exit 1
 }
 
@@ -83,7 +89,7 @@ prompt_input () {
 	CONFIRM_PROMPT+=("$2:${1% (*}")
 
 	if [ $PROMPT -gt 0 ]; then
-		log_color $COLOR_PROMPT
+		echo -n "${BLUE}${_WHITE}"
 		while [ -z ${!2} ]; do
 			read -rp "$1: " $2
 			if [ ! -z "$3" ]; then
@@ -95,7 +101,7 @@ prompt_input () {
 			fi
 
 		done
-		log_color 0
+		echo -n "${NORMAL}"
 		echo -ne "\e[2K"
 	fi
 }
@@ -116,10 +122,10 @@ print_raft () {
 }
 
 print_greet () {
-	log_color 34
+	echo -n "${BLUE}"
 	echo "Coderaft - VPS server configurator"
 	echo "https://github.com/diogocasado/coderaft"
-	log_color 0
+	echo -n "${NORMAL}"
 }
 
 invoke_func () {
@@ -157,18 +163,17 @@ bootstrap () {
 
 	log_debug "Prompts are ${CONFIRM_PROMPT[@]}"
 
-	echo "Please review:"
-	log_color 0 32
+	echo "Please review:${GREEN}"
 	for PAIR in "${CONFIRM_PROMPT[@]}"; do
 		DESC="${PAIR#*:}"
 		VAR="${PAIR%:*}"
 		echo "$DESC: ${!VAR}"
 	done
-	log_color 0
+	echo -n "${NORMAL}"
 	read -p "Continue? (y/N): " CONTINUE && [[ $CONTINUE == [yY] || $CONTINUE == [yY][eE][sS] ]] || exit 1
 
 	for PKG in $PKGS; do
-		echo "== Install $PKG"
+		echo "${BLUE}== Install $PKG ${NORMAL}"
 		invoke_func "${PKG,,}_install"
 		invoke_func "${PKG,,}_install_${DIST_ID}"
 	done
@@ -206,15 +211,12 @@ VLAN_SUBNET="10.132.0.0/16"
 platform_setup () {
 	prompt_input "DigitalOcean Token" DO_TOKEN null
 }
-# webnodejs.bash c8b25cdf 
-# vim: set syntax=sh
-
+# webnodejs.bash bb6d19b8 
 RAFT_ID=webnodejs
 RAFT_DESC="A simple Node.js + MongoDB raft."
-PKGS="nftables nginx letsencrypt"
+PKGS="nftables nginx letsencrypt nodejs"
 #PKGS="mongodb nodejs pm2"
 ADDONS=github
-
 # nftables.bash 41af07be 
 
 FWEND=nftables
@@ -477,9 +479,9 @@ nginx_gen_site_conf () {
 		EOF
 	done
 }
-# nginx-ubuntu.bash 6f6e1136 
+# nginx-ubuntu.bash 19366fa1 
 
-nginx_install () {
+nginx_install_ubuntu () {
 	echo "Probing nginx..."
 	NGINX_VER=$(nginx_get_ver)
 
@@ -497,7 +499,7 @@ nginx_install () {
 	fi
 }
 NGINX=1
-# letsencrypt.bash 3df53d6f 
+# letsencrypt.bash 6cc81196 
 
 SSLCERT=letsencrypt
 
@@ -523,7 +525,6 @@ letsencrypt_setup () {
 	if [ -z "$CERT_EMAIL" ]; then
 		log_error "Please provide CERT_EMAIL=realemail@domain.tld"
 	fi
-
 
 	if [ -z $(command -v snap) ]; then
 		log_error "Command snap not found"
@@ -609,4 +610,17 @@ letsencrypt_install () {
 	done
 }
 LETSENCRYPT=1
+# nodejs.bash 688d7a1e 
+
+nodejs_setup () {
+	prompt_input "Node.js Version (18.x)" NODEJS_VER "18.x"
+}
+
+# nodejs-ubuntu.bash 3c6f4258 
+
+nodejs_install_ubuntu () {
+	curl -fsSL https://deb.nodesource.com/setup_${NODEJS_VER} | bash -
+	apt-get install -y nodejs
+}
+NODEJS=1
 bootstrap

@@ -24,7 +24,6 @@ letsencrypt_setup () {
 		log_error "Please provide CERT_EMAIL=realemail@domain.tld"
 	fi
 
-
 	if [ -z $(command -v snap) ]; then
 		log_error "Command snap not found"
 	fi
