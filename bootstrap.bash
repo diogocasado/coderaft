@@ -109,6 +109,7 @@ print_greet () {
 
 invoke_func () {
 	if [ ! -z "$(type -t $1)" ]; then
+		[ ! -z "$2" ] && echo "${BLUE}$2${NORMAL}"
 		log_debug "Invoke $1"
 		"$1"
 	fi
@@ -158,9 +159,11 @@ bootstrap () {
 	done
 
 	for PKG in $PKGS; do
-		invoke_func "${PKG,,}_finish"
+		invoke_func "${PKG,,}_finish" \
+			"== Wrapping up ${PKG}"
 	done
 
+	echo "${BLUE}== Cleaning up${NORMAL}"
 	invoke_func "platform_finish"
 	invoke_func "dist_finish"
 	invoke_func "raft_finish"

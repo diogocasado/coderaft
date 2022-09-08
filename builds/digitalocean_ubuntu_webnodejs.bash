@@ -130,6 +130,7 @@ print_greet () {
 
 invoke_func () {
 	if [ ! -z "$(type -t $1)" ]; then
+		[ ! -z "$2" ] && echo "${BLUE}$2${NORMAL}"
 		log_debug "Invoke $1"
 		"$1"
 	fi
@@ -179,9 +180,11 @@ bootstrap () {
 	done
 
 	for PKG in $PKGS; do
-		invoke_func "${PKG,,}_finish"
+		invoke_func "${PKG,,}_finish" \
+			"== Wrapping up ${PKG}"
 	done
 
+	echo "${BLUE}== Cleaning up${NORMAL}"
 	invoke_func "platform_finish"
 	invoke_func "dist_finish"
 	invoke_func "raft_finish"
@@ -499,7 +502,7 @@ nginx_install_ubuntu () {
 	fi
 }
 NGINX=1
-# letsencrypt.bash 6cc81196 
+# letsencrypt.bash 2481e013 
 
 SSLCERT=letsencrypt
 
@@ -605,22 +608,53 @@ letsencrypt_install () {
 			VALID_UNTIL=$(echo $OUT | awk -F= '{ print $2 }')
 			echo "Skipping $DOMAIN"
 			echo "Certificate valid until $VALID_UNTIL"
-			echo "Consider running 'certbot renew'"
+			echo "${BOLD}Consider running 'certbot renew'${NORMAL}"
 		fi
 	done
 }
 LETSENCRYPT=1
-# nodejs.bash 688d7a1e 
+# nodejs.bash 751aa554 
 
 nodejs_setup () {
 	prompt_input "Node.js Version (18.x)" NODEJS_VER "18.x"
 }
 
-# nodejs-ubuntu.bash 3c6f4258 
+nodejs_install () {
+	
+	echo "Probing Node.js ..."
+	
+	NODEJS_VER="$(nodejs_get_ver)"
+
+	if [ ! -z "$NODEJS_VER" ]; then
+		echo "Node.js Version: $NODEJS_VER"
+	fi
+}
+
+nodejs_get_ver () {
+	local OUT=$(node -v 2>&1)
+	if [ $? -eq 0 ]; then
+		echo $(echo $OUT | awk 'match($0, /([0-9]+\.[0-9]+\.[0-9]+)/, g) {print g[1]}')
+	fi
+}
+
+
+# nodejs-ubuntu.bash 0489c792 
 
 nodejs_install_ubuntu () {
-	curl -fsSL https://deb.nodesource.com/setup_${NODEJS_VER} | bash -
-	apt-get install -y nodejs
+
+	if [ ! -f /etc/apt/sources.list.d/nodesource.list ]; then
+		echo "Fetching nodesource script"
+		curl -fsSL https://deb.nodesource.com/setup_${NODEJS_VER} | bash -
+	else
+		echo "Nodesource repository already added"
+	fi
+
+	if [ -z "$NODEJS_VER" ]; then
+		apt-get install -y nodejs
+	else
+		echo "${BOLD}Consider running 'apt-get update && apt-get -y install nodejs'${NORMAL}"
+	fi
 }
+
 NODEJS=1
 bootstrap

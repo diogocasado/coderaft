@@ -103,7 +103,7 @@ letsencrypt_install () {
 			VALID_UNTIL=$(echo $OUT | awk -F= '{ print $2 }')
 			echo "Skipping $DOMAIN"
 			echo "Certificate valid until $VALID_UNTIL"
-			echo "Consider running 'certbot renew'"
+			echo "${BOLD}Consider running 'certbot renew'${NORMAL}"
 		fi
 	done
 }
