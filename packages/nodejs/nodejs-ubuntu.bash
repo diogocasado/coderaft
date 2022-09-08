@@ -1,9 +1,10 @@
 
 nodejs_install_ubuntu () {
 
-	if [ ! -f /etc/apt/sources.list.d/nodesource.list ]; then
+	NODEJS_APT_SOURCE_FILE="${APT_SOURCES_DIR}/nodesource.list"
+	if [ ! -f "$NODEJS_APT_SOURCE_FILE" ]; then
 		echo "Fetching nodesource script"
-		curl -fsSL https://deb.nodesource.com/setup_${NODEJS_VER} | bash -
+		curl -fsSL https://deb.nodesource.com/setup_${NODEJS_PKG_VER} | bash -
 	else
 		echo "Nodesource repository already added"
 	fi

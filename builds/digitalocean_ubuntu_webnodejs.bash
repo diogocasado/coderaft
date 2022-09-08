@@ -192,16 +192,19 @@ bootstrap () {
 	echo "Done."
 }
 
-# ubuntu.bash 695fdfa3 
+# ubuntu.bash f42f1ac2 
 
 DIST_ID=ubuntu
 DIST_NAME=Ubuntu
 DIST_DESC="Ubuntu is the modern, open source operating system on Linux for the enterprise server, desktop, cloud, and IoT."
 
 dist_init () {
+	DIST_CODENAME=$(lsb_release -c | awk '{ print $2 }')
 	DIST_VER=$(lsb_release -r | awk '{ print $2 }')
 	DIST_VER_MAJOR=$(echo $DIST_VER | awk 'match($0, /([0-9]*)\./, m) { print m[1] }')
 	DIST_VER_MINOR=$(echo $DIST_VER | awk 'match($0, /[0-9]*\.([0-9]*)/, m) { print m[1] }')
+	APT_SOURCES_DIR=/etc/apt/sources.list.d
+	KEYRING_DIR="/usr/share/keyrings"
 }
 # digitalocean.bash 305013d6 
 
@@ -214,11 +217,11 @@ VLAN_SUBNET="10.132.0.0/16"
 platform_setup () {
 	prompt_input "DigitalOcean Token" DO_TOKEN null
 }
-# webnodejs.bash bb6d19b8 
+# webnodejs.bash f9ed0d9a 
 RAFT_ID=webnodejs
 RAFT_DESC="A simple Node.js + MongoDB raft."
-PKGS="nftables nginx letsencrypt nodejs"
-#PKGS="mongodb nodejs pm2"
+PKGS="nftables nginx letsencrypt nodejs mongodb"
+#PKGS="pm2"
 ADDONS=github
 # nftables.bash 41af07be 
 
@@ -613,16 +616,15 @@ letsencrypt_install () {
 	done
 }
 LETSENCRYPT=1
-# nodejs.bash 751aa554 
+# nodejs.bash 943ee0e9 
 
 nodejs_setup () {
-	prompt_input "Node.js Version (18.x)" NODEJS_VER "18.x"
+	prompt_input "Node.js Version (18.x)" NODEJS_PKG_VER "18.x"
 }
 
 nodejs_install () {
 	
 	echo "Probing Node.js ..."
-	
 	NODEJS_VER="$(nodejs_get_ver)"
 
 	if [ ! -z "$NODEJS_VER" ]; then
@@ -638,13 +640,14 @@ nodejs_get_ver () {
 }
 
 
-# nodejs-ubuntu.bash 0489c792 
+# nodejs-ubuntu.bash 3392fbaf 
 
 nodejs_install_ubuntu () {
 
-	if [ ! -f /etc/apt/sources.list.d/nodesource.list ]; then
+	NODEJS_APT_SOURCE_FILE="${APT_SOURCES_DIR}/nodesource.list"
+	if [ ! -f "$NODEJS_APT_SOURCE_FILE" ]; then
 		echo "Fetching nodesource script"
-		curl -fsSL https://deb.nodesource.com/setup_${NODEJS_VER} | bash -
+		curl -fsSL https://deb.nodesource.com/setup_${NODEJS_PKG_VER} | bash -
 	else
 		echo "Nodesource repository already added"
 	fi
@@ -657,4 +660,74 @@ nodejs_install_ubuntu () {
 }
 
 NODEJS=1
+# mongodb.bash 4467d795 
+
+mongodb_setup () {
+	prompt_input "MongoDB Version (6.0)" MONGODB_PKG_VER "6.0"
+}
+
+mongodb_install () {
+	echo "Probing MongoDB..."
+	MONGODB_VER="$(mongodb_get_ver)"
+
+	if [ ! -z "$MONGODB_VER" ]; then
+		echo "MongoDB Version: $MONGODB_VER"
+	fi
+}
+
+mongodb_get_ver () {
+	local OUT=$(mongod --version 2>&1)
+	if [ $? -eq 0 ]; then
+		echo $(echo $OUT | awk 'NR==1 && match($0, /([0-9]+\.[0-9]+\.[0-9]+)/, g) {print g[1]}')
+	fi
+}
+
+
+# mongodb-ubuntu.bash 38be0936 
+
+mongodb_install_ubuntu () {
+
+	MONGODB_APT_SOURCE_FILE="$APT_SOURCES_DIR/mongodb-org-${MONGODB_PKG_VER}.list"
+	MONGODB_KEY_FILE="$KEYRING_DIR/mongodb.gpg"
+
+	if [ ! -f "$MONGODB_APT_SOURCE_FILE" ]; then
+		echo "Importing repository public keys"
+		curl -sL https://www.mongodb.org/static/pgp/server-${MONGODB_PKG_VER}.asc | gpg --dearmor | tee $MONGODB_KEY_FILE >/dev/null
+
+		if [ "$DIST_CODENAME" == "jammy" ]; then
+			log_warn "Adding impish-security for libssl1.1 compat"
+			echo "deb http://old-releases.ubuntu.com/ubuntu impish-security main" > $APT_SOURCES_DIR/impish-security.list
+			log_warn "Adding repository source ubuntu/focal"
+			echo "deb [signed-by=$MONGODB_KEY_FILE] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/${MONGODB_PKG_VER} multiverse" > $MONGODB_APT_SOURCE_FILE
+		else
+			echo "Adding repository source ubuntu/$DIST_CODENAME"
+			echo "deb [signed-by=$MONGODB_KEY_FILE] https://repo.mongodb.org/apt/ubuntu ${DIST_CODENAME}/mongodb-org/${MONGODB_PKG_VER} multiverse" > $MONGODB_APT_SOURCE_FILE
+		fi
+	fi
+
+	if [ -z "$MONGODB_VER" ]; then
+		apt-get update
+		
+		if [ "$DIST_CODENAME" == "jammy" ]; then
+			log_warn "Installing libssl1.1"
+			apt-get install libssl1.1
+		fi
+
+		apt-get install -y mongodb-org
+
+		# This is to prevent unintended upgrades
+		echo "mongodb-org hold" | sudo dpkg --set-selections
+		echo "mongodb-org-database hold" | sudo dpkg --set-selections
+		echo "mongodb-org-server hold" | sudo dpkg --set-selections
+		echo "mongodb-mongosh hold" | sudo dpkg --set-selections
+		echo "mongodb-org-mongos hold" | sudo dpkg --set-selections
+		echo "mongodb-org-tools hold" | sudo dpkg --set-selections
+
+		systemctl enable mongod
+		systemctl start mongod
+	else
+		echo "${BOLD}Consider manually updating mongodb${NORMAL}"
+	fi
+}
+MONGODB=1
 bootstrap
