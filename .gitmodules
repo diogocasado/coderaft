@@ -1,0 +1,3 @@
+[submodule "modules/paddle"]
+	path = modules/paddle
+	url = git@github.com:diogocasado/coderaft-paddle.git
