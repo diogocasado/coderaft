@@ -2,6 +2,7 @@
 # MIT License
 # 
 # Copyright (c) 2022 Diogo Casado
+# https://github.com/diogocasado/coderaft
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +33,7 @@ if [ $EUID != 0 ]; then
 	exit 1
 fi
 
-VERBOSE=0
+VERBOSE=1
 PROMPT=1
 CONFIRM_PROMT=()
 
@@ -136,7 +137,7 @@ invoke_func () {
 	fi
 }
 
-bootstrap () {
+floatme () {
 	print_raft
 	print_greet
 
@@ -217,12 +218,10 @@ VLAN_SUBNET="10.132.0.0/16"
 platform_setup () {
 	prompt_input "DigitalOcean Token" DO_TOKEN null
 }
-# webnodejs.bash f9ed0d9a 
+# webnodejs.bash 7a2d25ad 
 RAFT_ID=webnodejs
 RAFT_DESC="A simple Node.js + MongoDB raft."
-PKGS="nftables nginx letsencrypt nodejs mongodb"
-#PKGS="pm2"
-ADDONS=github
+PKGS="nftables nginx letsencrypt nodejs mongodb git paddle"
 # nftables.bash 41af07be 
 
 FWEND=nftables
@@ -391,9 +390,10 @@ nftables_install () {
 	rm $NFTABLES_CONF_TMPFILE
 }
 NFTABLES=1
-# nginx.bash 58d8fa0d 
+# nginx.bash 48f12774 
 
 HTTPSVC=nginx
+ENDPOINTS=()
 
 nginx_setup () {
 	prompt_input "Domains (domain.tld ..)" DOMAINS
@@ -468,19 +468,30 @@ nginx_gen_site_conf () {
 		        ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
 		        ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 		        ssl_protocols TLSv1.2 TLSv1.3;
+		EOF
 
-		        location / {
-		                proxy_pass http://unix:/var/run/http_$DOMAIN_SOCK_FILE.sock;
+		for ENDPOINT in $ENDPOINTS; do
+			ENDPOINT_PATH=${ENDPOINT%%>*}
+			ENDPOINT_TARGET=${ENDPOINT#*>}
+
+			cat <<-EOF
+
+		        location $ENDPOINT_PATH {
+		                proxy_pass $ENDPOINT_TARGET;
 		                proxy_redirect off;
 		                proxy_http_version 1.1;
 		                proxy_set_header Upgrade \$http_upgrade;
 		                proxy_set_header Connection "";
+		                proxy_set_header Host \$http_host;
+		                proxy_set_header X-NginX-Proxy true;
 		                proxy_set_header X-Real-IP \$remote_addr;
 		                proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
 		                proxy_set_header X-Forwarded-Proto \$scheme;
-		                proxy_set_header Host \$http_host;
-		                proxy_set_header X-NginX-Proxy true;
 		        }
+			EOF
+
+		done
+		cat <<-EOF
 		}
 		EOF
 	done
@@ -730,4 +741,52 @@ mongodb_install_ubuntu () {
 	fi
 }
 MONGODB=1
-bootstrap
+# git.bash e8bff3b5 
+
+git_install () {
+	echo "Probing Git..."
+	GIT_VER="$(git_get_ver)"
+
+	if [ ! -z "$GIT_VER" ]; then
+		echo "Git Version: $GIT_VER"
+	fi
+}
+
+git_get_ver () {
+	local OUT=$(git --version 2>&1)
+	if [ $? -eq 0 ]; then
+		echo $(echo $OUT | awk 'match($0, /([0-9]+\.[0-9]+\.[0-9]+)/, g) {print g[1]}')
+	fi
+}
+
+
+# git-ubuntu.bash 2996f7af 
+
+git_install_ubuntu () {
+
+	if [ -z "$GIT_VER" ]; then
+		apt-get install git
+	fi
+}
+GIT=1
+# paddle.bash 61d5b488 
+
+paddle_setup () {
+	prompt_input "Webhooks (github)" PADDLE_WEBHOOKS "github"
+
+	ENDPOINTS+=("/paddle>http://unix:/run/paddle.sock")
+}
+
+paddle_install () {
+	PADDLE_DIR="$HOME/paddle"
+
+	if [ ! -d "$PADDLE_DIR" ]
+		git clone https://github.com/diogocasado/coderaft-paddle $PADDLE_DIR
+		($PADDLE_DIR/install)
+	else
+		cd $PADDLE_DIR
+		git pull
+	fi
+}
+PADDLE=1
+floatme

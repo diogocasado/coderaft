@@ -18,6 +18,24 @@ RAFT_FILES=$(ls -1 $RAFT_DIR)
 
 COMMIT=$(git rev-parse --short HEAD)
 
+check_dep () {
+	local DEP="$1"
+	for PKG in $PKGS; do
+		if [ "${PKG,,}" == "$DEP" ]; then
+			return
+		fi
+	done
+	echo "(Error) Missing dependency $DEP"
+	exit 1;
+}
+
+check_deps () {
+	local DEPS="$@"
+	for DEP in $DEPS; do
+		check_dep "$DEP"
+	done
+}
+
 build_print_platforms () {
 
 	for PLATFORM_FILE in ${PLATFORM_FILES[@]}; do
@@ -112,9 +130,9 @@ build_script () {
 	local BUILD_TMPFILE=$(mktemp -t coderaft.build.XXXX)
 	local BUILD_FILE="${BUILD_DIR}/${PLATFORM,,}_${DIST,,}_${RAFT,,}.bash"
 
-	build_echo_file_raw "${BASE_PATH}/bootstrap.bash" "NR==1"
+	build_echo_file_raw "${BASE_PATH}/coderaft.bash" "NR==1"
 	build_echo_file_comment "${BASE_PATH}/LICENSE"
-	build_echo_file_raw "${BASE_PATH}/bootstrap.bash" "NR>1"
+	build_echo_file_raw "${BASE_PATH}/coderaft.bash" "NR>1"
 
 	local DIST_FILE="${DIST_DIR}/${DIST,,}.bash"
 	. $DIST_FILE
@@ -129,13 +147,24 @@ build_script () {
 	build_echo_file $RAFT_FILE
 
 	for PKG in $PKGS; do
+		echo "== Package ${PKG}"
+		local PKG_BUILD_SCRIPT="${PKG_DIR}/${PKG}/build.bash"
 		local PKG_FILE="${PKG_DIR}/${PKG}/${PKG}"
 		local PKG_FILES="${PKG_FILE}.bash ${PKG_FILE}-${DIST_ID}.bash"
+		(
+			[ ! -f "$PKG_BUILD_SCRIPT" ] && exit 0
+			echo "Source $PKG_BUILD_SCRIPT"
+			. "$PKG_BUILD_SCRIPT"
+		)
+		if [ $? -gt 0 ]; then
+			exit $?
+		fi
 		build_echo_file $PKG_FILES
 		echo "${PKG^^}=1" >> $BUILD_TMPFILE
 	done
 
-	echo "bootstrap" >> $BUILD_TMPFILE
+	echo "=="
+	echo "floatme" >> $BUILD_TMPFILE
 
 	cp $BUILD_TMPFILE $BUILD_FILE
 	echo "Wrote $BUILD_FILE"

@@ -11,7 +11,7 @@ if [ $EUID != 0 ]; then
 	exit 1
 fi
 
-VERBOSE=0
+VERBOSE=1
 PROMPT=1
 CONFIRM_PROMT=()
 
@@ -115,7 +115,7 @@ invoke_func () {
 	fi
 }
 
-bootstrap () {
+floatme () {
 	print_raft
 	print_greet
 
