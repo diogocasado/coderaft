@@ -10,9 +10,8 @@ paddle_install () {
 
 	if [ ! -d "$PADDLE_DIR" ]
 		git clone https://github.com/diogocasado/coderaft-paddle $PADDLE_DIR
-		($PADDLE_DIR/install)
-	else
 		cd $PADDLE_DIR
-		git pull
+		git reset --hard $PADDLE_COMMIT
+		($PADDLE_DIR/install)
 	fi
 }

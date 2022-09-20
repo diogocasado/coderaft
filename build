@@ -18,6 +18,8 @@ RAFT_FILES=$(ls -1 $RAFT_DIR)
 
 COMMIT=$(git rev-parse --short HEAD)
 
+STRIP_EMPTY_LINES=1
+
 check_dep () {
 	local DEP="$1"
 	for PKG in $PKGS; do
@@ -36,8 +38,13 @@ check_deps () {
 	done
 }
 
-build_print_platforms () {
+build_export () {
+	VAR=$1
+	VALUE=${!VAR}
+	EXPORTS+=("$VAR=$VALUE")
+}
 
+build_print_platforms () {
 	for PLATFORM_FILE in ${PLATFORM_FILES[@]}; do
 		local PLATFORM_NAME=${PLATFORM_FILE%%.*}
 		local PLATFORM_DESC=$(. $PLATFORM_DIR/$PLATFORM_FILE > /dev/null 2>&1; echo $PLAT_DESC )
@@ -99,7 +106,6 @@ build_echo_file_comment () {
 	fi
 }
 
-
 build_echo_file () {
 	for FILE in "$@"; do
 		echo "Read $FILE"
@@ -153,20 +159,28 @@ build_script () {
 		local PKG_FILES="${PKG_FILE}.bash ${PKG_FILE}-${DIST_ID}.bash"
 		(
 			[ ! -f "$PKG_BUILD_SCRIPT" ] && exit 0
+			EXPORTS=()
 			echo "Source $PKG_BUILD_SCRIPT"
 			. "$PKG_BUILD_SCRIPT"
+			[ $? -gt 0 ] && exit $?
+			for EXPORT in "${EXPORTS[@]}"; do
+				echo "$EXPORT" >> $BUILD_TMPFILE
+			done
 		)
-		if [ $? -gt 0 ]; then
-			exit $?
-		fi
+		[ $? -gt 0 ] &&	exit $?
 		build_echo_file $PKG_FILES
 		echo "${PKG^^}=1" >> $BUILD_TMPFILE
+
 	done
 
 	echo "=="
 	echo "floatme" >> $BUILD_TMPFILE
 
-	cp $BUILD_TMPFILE $BUILD_FILE
+	if [ $STRIP_EMPTY_LINES -gt 0 ]; then
+		cat $BUILD_TMPFILE | awk '/^\s*$/{next} {print}' > $BUILD_FILE
+	else
+		cp $BUILD_TMPFILE $BUILD_FILE
+	fi
 	echo "Wrote $BUILD_FILE"
 
 	git add $BUILD_FILE

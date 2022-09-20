@@ -2,18 +2,14 @@
 
 #set -x
 
-PATH=$(. /etc/environment; echo $PATH)
-HOME="/root"
-TMPDIR="/tmp"
+VERBOSE=0
+PROMPT=1
+CONFIRM_PROMT=()
 
 if [ $EUID != 0 ]; then
 	echo "Requires root. Sorry."
 	exit 1
 fi
-
-VERBOSE=1
-PROMPT=1
-CONFIRM_PROMT=()
 
 if [ ! -z "$(command -v tput)" ]; then
 	NCOLORS=$(tput colors)
