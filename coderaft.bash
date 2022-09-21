@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#set -x
+# set -x
 
 VERBOSE=0
 PROMPT=1
-CONFIRM_PROMT=()
+CONFIRM_PROMPT=()
 
 if [ $EUID != 0 ]; then
 	echo "Requires root. Sorry."
@@ -104,10 +104,12 @@ print_greet () {
 }
 
 invoke_func () {
-	if [ ! -z "$(type -t $1)" ]; then
-		[ ! -z "$2" ] && echo "${BLUE}$2${NORMAL}"
-		log_debug "Invoke $1"
-		"$1"
+	local FUNC=${1//-/_}
+	local INFO=$2
+	if [ ! -z "$(type -t $FUNC)" ]; then
+		[ ! -z "$INFO" ] && echo "${BLUE}$INFO${NORMAL}"
+		log_debug "Invoke $FUNC"
+		"$FUNC"
 	fi
 }
 

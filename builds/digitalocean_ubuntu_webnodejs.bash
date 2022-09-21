@@ -2,7 +2,6 @@
 # MIT License
 # 
 # Copyright (c) 2022 Diogo Casado
-# https://github.com/diogocasado/coderaft
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +20,10 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#set -x
+# set -x
 VERBOSE=0
 PROMPT=1
-CONFIRM_PROMT=()
+CONFIRM_PROMPT=()
 if [ $EUID != 0 ]; then
 	echo "Requires root. Sorry."
 	exit 1
@@ -112,10 +111,12 @@ print_greet () {
 	echo -n "${NORMAL}"
 }
 invoke_func () {
-	if [ ! -z "$(type -t $1)" ]; then
-		[ ! -z "$2" ] && echo "${BLUE}$2${NORMAL}"
-		log_debug "Invoke $1"
-		"$1"
+	local FUNC=${1//-/_}
+	local INFO=$2
+	if [ ! -z "$(type -t $FUNC)" ]; then
+		[ ! -z "$INFO" ] && echo "${BLUE}$INFO${NORMAL}"
+		log_debug "Invoke $FUNC"
+		"$FUNC"
 	fi
 }
 floatme () {
@@ -182,12 +183,12 @@ VLAN_SUBNET="10.132.0.0/16"
 platform_setup () {
 	prompt_input "DigitalOcean Token" DO_TOKEN null
 }
-# webnodejs.bash 7a2d25ad 
+# webnodejs.bash 7cb6af08 
 RAFT_ID=webnodejs
 RAFT_DESC="A simple Node.js + MongoDB raft."
-PKGS="nftables nginx letsencrypt nodejs mongodb git paddle"
-# nftables.bash 41af07be 
-FWEND=nftables
+PKGS="nftables nginx letsencrypt nodejs mongodb git paddle git-clone"
+# nftables.bash 9f606cfd 
+FIREWALL=nftables
 nftables_setup () {
 	prompt_input "VLAN ifname" VLAN_IFACE
 	prompt_input "VLAN subnet" VLAN_SUBNET
@@ -265,7 +266,7 @@ nftables_gen_conf () {
 	                        icmpv6 type echo-request goto in_icmp
 	                meta nfproto ipv4 tcp dport 22 ct state new goto in_ssh
 	EOF
-	if [ ! -z $HTTPSVC ]; then
+	if [ ! -z $HTTP_SERVER ]; then
 	cat <<-EOF
 	                tcp dport 80 accept
 	                tcp dport 443 accept
@@ -316,8 +317,8 @@ nftables_install () {
 	rm $NFTABLES_CONF_TMPFILE
 }
 NFTABLES=1
-# nginx.bash 48f12774 
-HTTPSVC=nginx
+# nginx.bash 68cf2bee 
+HTTP_SERVER=nginx
 ENDPOINTS=()
 nginx_setup () {
 	prompt_input "Domains (domain.tld ..)" DOMAINS
@@ -378,7 +379,7 @@ nginx_gen_site_conf () {
 		        ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 		        ssl_protocols TLSv1.2 TLSv1.3;
 		EOF
-		for ENDPOINT in $ENDPOINTS; do
+		for ENDPOINT in ${ENDPOINTS[@]}; do
 			ENDPOINT_PATH=${ENDPOINT%%>*}
 			ENDPOINT_TARGET=${ENDPOINT#*>}
 			cat <<-EOF
@@ -400,6 +401,11 @@ nginx_gen_site_conf () {
 		}
 		EOF
 	done
+}
+nginx_add_endpoint () {
+	local LOCATION=$1
+	local TARGET=$2
+	ENDPOINTS+=("$LOCATION>$TARGET")
 }
 # nginx-ubuntu.bash 19366fa1 
 nginx_install_ubuntu () {
@@ -506,7 +512,7 @@ letsencrypt_install () {
 	done
 }
 LETSENCRYPT=1
-# nodejs.bash 943ee0e9 
+# nodejs.bash cf08d5de 
 nodejs_setup () {
 	prompt_input "Node.js Version (18.x)" NODEJS_PKG_VER "18.x"
 }
@@ -616,20 +622,103 @@ git_install_ubuntu () {
 }
 GIT=1
 PADDLE_COMMIT=5b3d496e6e50cd492219475f5d846e6718f313c4
-# paddle.bash 61d5b488 
+# paddle.bash 6dbfdf48 
 paddle_setup () {
 	prompt_input "Webhooks (github)" PADDLE_WEBHOOKS "github"
-	ENDPOINTS+=("/paddle>http://unix:/run/paddle.sock")
+	nginx_add_endpoint "/paddle" "http://unix:/run/paddle.sock"
 }
 paddle_install () {
 	PADDLE_DIR="$HOME/paddle"
-	if [ ! -d "$PADDLE_DIR" ]
-		git clone https://github.com/diogocasado/coderaft-paddle $PADDLE_DIR
-		($PADDLE_DIR/install)
+	if [ ! -e "$PADDLE_DIR" ]; then
+		git clone "https://github.com/diogocasado/coderaft-paddle" "$PADDLE_DIR"
+		if [ ! -z "$PADDLE_COMMIT" ]; then
+			cd $PADDLE_DIR
+			git reset --hard "$PADDLE_COMMIT"
+		fi
 	else
+		echo "Repository found at $PADDLE_DIR"
 		cd $PADDLE_DIR
-		git pull
+		git log -n 1 --oneline
+		log_warn "Consider removing or 'git pull'"
+	fi
+	("$PADDLE_DIR/install")
+}
+GIT=1
+GIT_CLONE_DUMMY_COMMIT=43e125a827ffa36bb3390ae7b29c07668dff0621
+# git-clone.bash 5538c900 
+git_clone_setup () {
+	prompt_input "Git clone repository (dummy)" GIT_CLONE_REPOSITORY "https://github.com/diogocasado/coderaft-dummy.git"
+	if [ ! -z $GIT_CLONE_REPOSITORY ]; then
+		prompt_input "Repository dir (dummy)" GIT_CLONE_DIR "$HOME/dummy"
+		prompt_input "Repository commit" GIT_CLONE_COMMIT "$GIT_CLONE_DUMMY_COMMIT"
 	fi
 }
-PADDLE=1
+git_clone_install () {
+	if [ ! -e "$GIT_CLONE_DIR" ]; then
+		git clone "$GIT_CLONE_REPOSITORY" "$GIT_CLONE_DIR"
+		if [ ! -z "$GIT_CLONE_COMMIT" ]; then
+			cd $GIT_CLONE_DIR
+			git reset --hard "$GIT_CLONE_COMMIT"
+		fi
+		if [ -f "$GIT_CLONE_DIR/coderaft" ]; then
+			git_clone_unwrap "$GIT_CLONE_DIR/coderaft"
+		fi
+	else
+		echo "Repository found at $GIT_CLONE_DIR"
+		cd $GIT_CLONE_DIR
+		git log -n 1 --oneline
+		log_warn "Consider removing or 'git pull'"
+	fi
+}
+git_clone_unwrap () {
+	FILE=$1
+	local SYSTEMD_PATH=/usr/lib/systemd/system
+	unset SERVICE
+	unset DESCRIPTION
+	unset START
+	unset LOCATION
+	unset PROXY_PASS
+	echo "Unwrap $FILE"
+	. "$FILE"
+	if [ -z "$SERVICE" ]; then
+		SERVICE=$(dirname "$FILE")
+		SERVICE=${SERVICE#*/}
+	fi
+	echo "Service: $SERVICE"
+	[ ! -z "$DESCRIPTION" ] && echo "Description: $DESCRIPTION"
+	if [ ! -z "$LOCATION" ] && [ ! -z "$PROXY_PASS" ]; then
+		echo "Location: $LOCATION -> $PROXY_PASS ($SERVICE)"
+		nginx_add_endpoint "$LOCATION" "$PROXY_PASS"
+	fi
+	[ -z "$START" ] && git_clone_probe_start_nodejs
+	[ -z "$START" ] && log_error "Could not determine command to start service."
+	echo "Start: $START"
+	if [ -d "${SYSTEMD_PATH}" ]; then
+		echo "$(git_clone_gen_systemd_unit)" > "$SYSTEMD_PATH/$SERVICE.service"
+		systemctl start $SERVICE
+		systemctl --no-pager -n5 status $SERVICE
+	fi
+}
+git_clone_probe_start_nodejs () {
+	local SERVICE_PATH="$(dirname $FILE)"
+	local NODEJS_PATH="$(which node)"
+	if [ ! -z "$NODEJS_PATH" ] && [ -f "$SERVICE_PATH/package.json" ]; then
+		START="$NODEJS_PATH $SERVICE_PATH"
+	fi
+}
+git_clone_gen_systemd_unit () {
+	[ ! -z "$DESCRIPTION" ] && cat <<-EOF
+	[Unit]
+	Description=$DESCRIPTION
+	EOF
+	cat <<-EOF
+	[Service]
+	ExecStart=$START
+	Restart=on-failure
+	RestartSec=1
+	[Install]
+	WantedBy=multi-user.target
+	EOF
+}
+GIT=1
 floatme

@@ -1,5 +1,4 @@
-
-PADDLE_COMMIT=$(git submodule status | awk '$2=="modules/paddle"{print $1}')
-
 check_deps nodejs git
+
+PADDLE_COMMIT=$(get_module_commit "paddle")
 build_export PADDLE_COMMIT

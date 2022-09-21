@@ -1,5 +1,5 @@
 
-HTTPSVC=nginx
+HTTP_SERVER=nginx
 ENDPOINTS=()
 
 nginx_setup () {
@@ -77,7 +77,7 @@ nginx_gen_site_conf () {
 		        ssl_protocols TLSv1.2 TLSv1.3;
 		EOF
 
-		for ENDPOINT in $ENDPOINTS; do
+		for ENDPOINT in ${ENDPOINTS[@]}; do
 			ENDPOINT_PATH=${ENDPOINT%%>*}
 			ENDPOINT_TARGET=${ENDPOINT#*>}
 
@@ -102,4 +102,10 @@ nginx_gen_site_conf () {
 		}
 		EOF
 	done
+}
+
+nginx_add_endpoint () {
+	local LOCATION=$1
+	local TARGET=$2
+	ENDPOINTS+=("$LOCATION>$TARGET")
 }

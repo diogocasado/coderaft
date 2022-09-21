@@ -1,5 +1,5 @@
 
-FWEND=nftables
+FIREWALL=nftables
 
 nftables_setup () {
 
@@ -11,7 +11,6 @@ nftables_setup () {
 		exit 2
 	fi
 }
-
 
 nftables_gen_conf () {
 
@@ -101,7 +100,7 @@ nftables_gen_conf () {
 	                meta nfproto ipv4 tcp dport 22 ct state new goto in_ssh
 	EOF
 
-	if [ ! -z $HTTPSVC ]; then
+	if [ ! -z $HTTP_SERVER ]; then
 	cat <<-EOF
 	                tcp dport 80 accept
 	                tcp dport 443 accept
@@ -129,4 +128,3 @@ nftables_gen_conf () {
 	}
 	EOF
 }
-

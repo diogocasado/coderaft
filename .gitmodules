@@ -1,3 +1,6 @@
 [submodule "modules/paddle"]
 	path = modules/paddle
 	url = git@github.com:diogocasado/coderaft-paddle.git
+[submodule "modules/dummy"]
+	path = modules/dummy
+	url = git@github.com:diogocasado/coderaft-dummy.git

@@ -4,7 +4,6 @@ nodejs_setup () {
 }
 
 nodejs_install () {
-	
 	echo "Probing Node.js ..."
 	NODEJS_VER="$(nodejs_get_ver)"
 

@@ -18,6 +18,7 @@ RAFT_FILES=$(ls -1 $RAFT_DIR)
 
 COMMIT=$(git rev-parse --short HEAD)
 
+MODULES_SYNC_COMMIT=1
 STRIP_EMPTY_LINES=1
 
 check_dep () {
@@ -38,6 +39,11 @@ check_deps () {
 	done
 }
 
+get_module_commit () {
+	local MODULE=$1
+	[ $MODULES_SYNC_COMMIT -gt 0 ] && echo $(git submodule status | awk "\$2==\"modules/$MODULE\"{print \$1}")
+}
+
 build_export () {
 	VAR=$1
 	VALUE=${!VAR}
@@ -47,7 +53,7 @@ build_export () {
 build_print_platforms () {
 	for PLATFORM_FILE in ${PLATFORM_FILES[@]}; do
 		local PLATFORM_NAME=${PLATFORM_FILE%%.*}
-		local PLATFORM_DESC=$(. $PLATFORM_DIR/$PLATFORM_FILE > /dev/null 2>&1; echo $PLAT_DESC )
+		local PLATFORM_DESC=$(. "$PLATFORM_DIR/$PLATFORM_FILE" > /dev/null 2>&1; echo $PLAT_DESC )
 		echo $PLATFORM_NAME: $PLATFORM_DESC
 	done
 }
@@ -55,7 +61,7 @@ build_print_platforms () {
 build_print_dists () {
 	for DIST_FILE in ${DIST_FILES[@]}; do
 		local DIST_NAME=${DIST_FILE%%.*}
-		local DIST_DESC=$(. $DIST_DIR/$DIST_FILE > /dev/null 2>&1; echo $DIST_DESC )
+		local DIST_DESC=$(. "$DIST_DIR/$DIST_FILE" > /dev/null 2>&1; echo $DIST_DESC )
 		echo $DIST_NAME: $DIST_DESC
 	done
 }
@@ -63,7 +69,7 @@ build_print_dists () {
 build_print_rafts () {
 	for RAFT_FILE in ${RAFT_FILES[@]}; do
 		local RAFT_NAME=${RAFT_FILE%%.*}
-		local RAFT_DESC=$(. $RAFT_DIR/$RAFT_FILE > /dev/null 2>&1; echo $RAFT_DESC )
+		local RAFT_DESC=$(. "$RAFT_DIR/$RAFT_FILE" > /dev/null 2>&1; echo $RAFT_DESC )
 		echo $RAFT_NAME: $RAFT_DESC
 	done
 }
@@ -86,8 +92,8 @@ build_print_usage () {
 
 build_echo_file_raw () {
 	local FILE=$1
-	echo "Read $FILE"
 	if [ -f "$FILE" ]; then
+		echo "Read $FILE"
 		cat $FILE | awk "$2{print}" >> $BUILD_TMPFILE
 	else
 		echo "(Error) Unable to find file $FILE"
@@ -97,8 +103,8 @@ build_echo_file_raw () {
 
 build_echo_file_comment () {
 	local FILE=$1
-	echo "Read $FILE"
 	if [ -f "$FILE" ]; then
+		echo "Read $FILE"
 		cat $FILE | awk '{print "# "$0}' >> $BUILD_TMPFILE
 	else
 		echo "(Error) Unable to find file $FILE"
@@ -108,8 +114,8 @@ build_echo_file_comment () {
 
 build_echo_file () {
 	for FILE in "$@"; do
-		echo "Read $FILE"
 		if [ -f "$FILE" ]; then
+			echo "Read $FILE"
 			local FILE_HASH=$(sha256sum < $FILE)
 			echo "# ${FILE##*/} ${FILE_HASH:0:8} " >> $BUILD_TMPFILE
 			cat $FILE >> $BUILD_TMPFILE
@@ -141,15 +147,15 @@ build_script () {
 	build_echo_file_raw "${BASE_PATH}/coderaft.bash" "NR>1"
 
 	local DIST_FILE="${DIST_DIR}/${DIST,,}.bash"
-	. $DIST_FILE
+	. "$DIST_FILE"
 	build_echo_file $DIST_FILE
 
 	local PLATFORM_FILE="${PLATFORM_DIR}/${PLATFORM,,}.bash"
-	. $PLATFORM_FILE
+	. "$PLATFORM_FILE"
 	build_echo_file $PLATFORM_FILE
 
 	RAFT_FILE="${RAFT_DIR}/${RAFT,,}.bash"
-	. $RAFT_FILE
+	. "$RAFT_FILE"
 	build_echo_file $RAFT_FILE
 
 	for PKG in $PKGS; do
@@ -157,20 +163,23 @@ build_script () {
 		local PKG_BUILD_SCRIPT="${PKG_DIR}/${PKG}/build.bash"
 		local PKG_FILE="${PKG_DIR}/${PKG}/${PKG}"
 		local PKG_FILES="${PKG_FILE}.bash ${PKG_FILE}-${DIST_ID}.bash"
-		(
-			[ ! -f "$PKG_BUILD_SCRIPT" ] && exit 0
-			EXPORTS=()
+
+		if [ -f "$PKG_BUILD_SCRIPT" ]; then
 			echo "Source $PKG_BUILD_SCRIPT"
+			EXPORTS=()
+			
 			. "$PKG_BUILD_SCRIPT"
 			[ $? -gt 0 ] && exit $?
+
 			for EXPORT in "${EXPORTS[@]}"; do
 				echo "$EXPORT" >> $BUILD_TMPFILE
 			done
-		)
-		[ $? -gt 0 ] &&	exit $?
-		build_echo_file $PKG_FILES
-		echo "${PKG^^}=1" >> $BUILD_TMPFILE
+		fi
 
+		build_echo_file $PKG_FILES
+		local PKG_VAR=${PKG//-/_}
+		PKG_VAR=${PKG_VAR^^}
+		echo "$PKG_VAR=1" >> $BUILD_TMPFILE
 	done
 
 	echo "=="
