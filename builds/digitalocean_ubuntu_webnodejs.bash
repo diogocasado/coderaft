@@ -621,8 +621,8 @@ git_install_ubuntu () {
 	fi
 }
 GIT=1
-PADDLE_COMMIT=5b3d496e6e50cd492219475f5d846e6718f313c4
-# paddle.bash 6dbfdf48 
+PADDLE_COMMIT=e1d584d890bc516966d1ec7e1a039e1aecfcfe4f
+# paddle.bash 3552e53b 
 paddle_setup () {
 	prompt_input "Webhooks (github)" PADDLE_WEBHOOKS "github"
 	nginx_add_endpoint "/paddle" "http://unix:/run/paddle.sock"
@@ -635,13 +635,13 @@ paddle_install () {
 			cd $PADDLE_DIR
 			git reset --hard "$PADDLE_COMMIT"
 		fi
+		("$PADDLE_DIR/install")
 	else
 		echo "Repository found at $PADDLE_DIR"
 		cd $PADDLE_DIR
 		git log -n 1 --oneline
 		log_warn "Consider removing or 'git pull'"
 	fi
-	("$PADDLE_DIR/install")
 }
 GIT=1
 GIT_CLONE_DUMMY_COMMIT=43e125a827ffa36bb3390ae7b29c07668dff0621

@@ -139,6 +139,8 @@ build_script () {
 	local DIST=$2
 	local RAFT=$3
 
+	echo "== Build $PLATFORM $DIST $RAFT"
+
 	local BUILD_TMPFILE=$(mktemp -t coderaft.build.XXXX)
 	local BUILD_FILE="${BUILD_DIR}/${PLATFORM,,}_${DIST,,}_${RAFT,,}.bash"
 
@@ -197,10 +199,27 @@ build_script () {
 
 cd "$BASE_PATH"
 
-if [ $# -lt 3 ]; then
+if [ $# -gt 0 ] && [ $# -ne 3 ]; then
 	build_print_usage
+	exit 0
 fi
 
-build_script $1 $2 $3
+if [ $# -eq 3 ]; then
+	build_script $1 $2 $3
+	exit 0
+fi
 
-cd "$OLD_PWD"
+echo "== Coderaft builder =="
+if [ "$BUILD_ALL" != 1 ]; then
+	echo "Do you wish to build all (y[es]/n[o]) "
+	while [ true ]; do
+		read -r
+		case "$REPLY" in
+			[Yy]* ) break;;
+			[Nn]* ) exit 1;;
+		esac
+	done
+fi
+
+build_script "digitalocean" "ubuntu" "webnodejs"
+

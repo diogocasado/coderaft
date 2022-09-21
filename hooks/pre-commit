@@ -1,0 +1,18 @@
+#!/bin/bash
+
+confirm_prompt () {
+	local PROMPT=$1
+	local NORET=$2
+
+	echo "$PROMPT (yes/no) "
+	while [ true ]; do
+		read -r < /dev/tty
+		[ "$REPLY" == "no" ] && exit $NORET
+		[ "$REPLY" == "yes" ] && break
+	done
+}
+
+confirm_prompt "Do you wish to rebuild before commit?" 0
+export BUILD_ALL=1
+./build < /dev/tty
+confirm_prompt "Continue commit?" 1
