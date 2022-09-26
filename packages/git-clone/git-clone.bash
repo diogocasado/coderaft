@@ -2,8 +2,12 @@
 git_clone_setup () {
 	prompt_input "Git clone repository (dummy)" GIT_CLONE_REPOSITORY "https://github.com/diogocasado/coderaft-dummy.git"
 	if [ ! -z $GIT_CLONE_REPOSITORY ]; then
-		prompt_input "Repository dir (dummy)" GIT_CLONE_DIR "$HOME/dummy"
-		prompt_input "Repository commit" GIT_CLONE_COMMIT "$GIT_CLONE_DUMMY_COMMIT"
+		prompt_input "Repository dir (/home/dummy)" GIT_CLONE_DIR "/home/dummy"
+		GIT_CLONE_COMMIT_DEFAULT="$GIT_CLONE_DUMMY_COMMIT"
+		if [ -z "$GIT_CLONE_COMMIT_DEFAULT" ]; then
+			GIT_CLONE_COMMIT_DEFAULT="null"
+		fi
+		prompt_input "Repository commit" GIT_CLONE_COMMIT "$GIT_CLONE_COMMIT_DEFAULT"
 	fi
 }
 
@@ -23,7 +27,7 @@ git_clone_install () {
 		echo "Repository found at $GIT_CLONE_DIR"
 		cd $GIT_CLONE_DIR
 		git log -n 1 --oneline
-		log_warn "Consider removing or 'git pull'"
+		echo "${BOLD}Consider removing or 'git pull'${NORMAL}"
 	fi
 }
 

@@ -18,7 +18,7 @@ RAFT_FILES=$(ls -1 $RAFT_DIR)
 
 COMMIT=$(git rev-parse --short HEAD)
 
-MODULES_SYNC_COMMIT=1
+MODULES_SYNC_COMMIT=0
 STRIP_EMPTY_LINES=1
 
 check_dep () {
@@ -37,6 +37,15 @@ check_deps () {
 	for DEP in $DEPS; do
 		check_dep "$DEP"
 	done
+}
+
+build_check_dirty_submodules () {
+	local DIRTY=$(git submodule status | awk '/^[^0-9]/ { print "x" }')
+	if [ ! -z "$DIRTY" ]; then
+		echo "Commit the following submodules before building:"
+		git submodule status | awk '/^[^0-9]/ { print $2 }'
+		exit 1;
+	fi
 }
 
 get_module_commit () {
@@ -140,6 +149,8 @@ build_script () {
 	local RAFT=$3
 
 	echo "== Build $PLATFORM $DIST $RAFT"
+
+	[ $MODULES_SYNC_COMMIT -gt 0 ] && build_check_dirty_submodules
 
 	local BUILD_TMPFILE=$(mktemp -t coderaft.build.XXXX)
 	local BUILD_FILE="${BUILD_DIR}/${PLATFORM,,}_${DIST,,}_${RAFT,,}.bash"

@@ -21,6 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # set -x
+CODERAFT=1
 VERBOSE=0
 PROMPT=1
 CONFIRM_PROMPT=()
@@ -621,14 +622,17 @@ git_install_ubuntu () {
 	fi
 }
 GIT=1
-PADDLE_COMMIT=e1d584d890bc516966d1ec7e1a039e1aecfcfe4f
-# paddle.bash 3552e53b 
+PADDLE_COMMIT=
+# paddle.bash faf451c8 
 paddle_setup () {
-	prompt_input "Webhooks (github)" PADDLE_WEBHOOKS "github"
-	nginx_add_endpoint "/paddle" "http://unix:/run/paddle.sock"
+	prompt_input "Webhooks (discord)" PADDLE_WEBHOOKS "discord"
+	for WEBHOOK in "${PADDLE_WEBHOOKS}"; do
+		[ "$WEBHOOK" == "discord" ] && PADDLE_USE_DISCORD=1
+	done;
+	nginx_add_endpoint "/paddle" "http://unix:/run/paddle_http.sock"
 }
 paddle_install () {
-	PADDLE_DIR="$HOME/paddle"
+	PADDLE_DIR="/home/paddle"
 	if [ ! -e "$PADDLE_DIR" ]; then
 		git clone "https://github.com/diogocasado/coderaft-paddle" "$PADDLE_DIR"
 		if [ ! -z "$PADDLE_COMMIT" ]; then
@@ -640,17 +644,58 @@ paddle_install () {
 		echo "Repository found at $PADDLE_DIR"
 		cd $PADDLE_DIR
 		git log -n 1 --oneline
-		log_warn "Consider removing or 'git pull'"
+		echo "${BOLD}Consider removing or 'git pull'${NORMAL}"
 	fi
 }
+paddle_finish () {
+	if [ ! -z "$SERVICE" ]; then
+		if [ ! -z "$PADDLE_USE_DISCORD" ]; then
+			prompt_input "Discord Url" PADDLE_DISCORD_URL
+		fi
+		echo "Generate paddle config"
+		log_debug_file "$PADDLE_DIR/local.js"
+		echo "$(paddle_gen_local_config)" > "$PADDLE_DIR/local.js"
+		systemctl start paddle
+		systemctl --no-pager -n5 status paddle
+	fi
+}
+paddle_gen_local_config () {
+	cat <<-EOF
+	exports.config = (config) => {
+	EOF
+	[ ! -z "$PADDLE_USE_DISCORD" ] && [ ! -z "$PADDLE_DISCORD_URL" ] && cat <<-EOF
+            config.discord.url = '$PADDLE_DISCORD_URL';
+	EOF
+	cat <<-EOF
+	    config.services.push({
+	        name: '$SERVICE',
+	        gitPath: '$GIT_CLONE_DIR',
+	        location: '$LOCATION',
+	        proxyPass: '$PROXY_PASS',
+	        publishStatsInterval: 60000,
+	EOF
+	[ ! -z "$PADDLE_USE_DISCORD" ] && [ ! -z "$PADDLE_DISCORD_URL" ] && cat <<-EOF
+	        discord: {
+	            url: config.discord.url
+	        }
+	EOF
+	cat <<-EOF
+	    });
+	}
+	EOF
+}
 GIT=1
-GIT_CLONE_DUMMY_COMMIT=43e125a827ffa36bb3390ae7b29c07668dff0621
-# git-clone.bash 5538c900 
+GIT_CLONE_DUMMY_COMMIT=
+# git-clone.bash 165fb4fc 
 git_clone_setup () {
 	prompt_input "Git clone repository (dummy)" GIT_CLONE_REPOSITORY "https://github.com/diogocasado/coderaft-dummy.git"
 	if [ ! -z $GIT_CLONE_REPOSITORY ]; then
-		prompt_input "Repository dir (dummy)" GIT_CLONE_DIR "$HOME/dummy"
-		prompt_input "Repository commit" GIT_CLONE_COMMIT "$GIT_CLONE_DUMMY_COMMIT"
+		prompt_input "Repository dir (/home/dummy)" GIT_CLONE_DIR "/home/dummy"
+		GIT_CLONE_COMMIT_DEFAULT="$GIT_CLONE_DUMMY_COMMIT"
+		if [ -z "$GIT_CLONE_COMMIT_DEFAULT" ]; then
+			GIT_CLONE_COMMIT_DEFAULT="null"
+		fi
+		prompt_input "Repository commit" GIT_CLONE_COMMIT "$GIT_CLONE_COMMIT_DEFAULT"
 	fi
 }
 git_clone_install () {
@@ -667,7 +712,7 @@ git_clone_install () {
 		echo "Repository found at $GIT_CLONE_DIR"
 		cd $GIT_CLONE_DIR
 		git log -n 1 --oneline
-		log_warn "Consider removing or 'git pull'"
+		echo "${BOLD}Consider removing or 'git pull'${NORMAL}"
 	fi
 }
 git_clone_unwrap () {

@@ -2,6 +2,7 @@
 
 # set -x
 
+CODERAFT=1
 VERBOSE=0
 PROMPT=1
 CONFIRM_PROMPT=()
