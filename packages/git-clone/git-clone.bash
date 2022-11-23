@@ -1,8 +1,10 @@
 
 git_clone_setup () {
-	prompt_input "Git clone repository (dummy)" GIT_CLONE_REPOSITORY "https://github.com/diogocasado/coderaft-dummy.git"
+	prompt_input "Git clone repository (coderaft-dummy)" GIT_CLONE_REPOSITORY "https://github.com/diogocasado/coderaft-dummy.git"
 	if [ ! -z $GIT_CLONE_REPOSITORY ]; then
-		prompt_input "Repository dir (/home/dummy)" GIT_CLONE_DIR "/home/dummy"
+		GIT_CLONE_REPOSITORY_NAME=$(echo "$GIT_CLONE_REPOSITORY" | awk 'match($0, /.+\/([A-Za-z0-9\-_]+)\.git$/, g) {print g[1]}')
+		prompt_input "Repository dir (/home/${GIT_CLONE_REPOSITORY_NAME})" GIT_CLONE_DIR "/home/${GIT_CLONE_REPOSITORY_NAME}"
+		
 		GIT_CLONE_COMMIT_DEFAULT="$GIT_CLONE_DUMMY_COMMIT"
 		if [ -z "$GIT_CLONE_COMMIT_DEFAULT" ]; then
 			GIT_CLONE_COMMIT_DEFAULT="null"

@@ -38,7 +38,7 @@ if [ ! -z "$(command -v tput)" ]; then
 	fi
 fi
 
-log_debug() {
+log_debug () {
 	if [ $VERBOSE -gt 0 ]; then
 		echo "${CYAN}(Debug) $@ ${NORMAL}"
 	fi
@@ -62,20 +62,55 @@ log_error () {
 }
 
 prompt_input () {
-	CONFIRM_PROMPT+=("$2:${1% (*}")
-
+	local DESC=$1
+	local VARNAME=$2
+	local DEFVALUE=$3
+	CONFIRM_PROMPT+=("$VARNAME:${DESC% (*}")
 	if [ $PROMPT -gt 0 ]; then
 		echo -n "${BLUE}${_WHITE}"
-		while [ -z ${!2} ]; do
-			read -rp "$1: " $2
-			if [ ! -z "$3" ]; then
-				if [ "$3" != "null" ] && [ -z "${!2}" ]; then
-					local -n VAR="$2"
-					VAR="$3"
+		local -n VAR="$VARNAME"
+		while [ -z "$VAR" ]; do
+			read -r -p "$DESC: " $VARNAME
+			if [ -z "$VAR" ] && [ ! -z "$DEFVALUE" ]; then
+				if [ "${DEFVALUE^^}" == "NULL" ]; then
+					break
 				fi
-				break
+				VAR="$DEFVALUE"
 			fi
+		done
+		echo -n "${NORMAL}"
+		echo -ne "\e[2K"
+	fi
+}
 
+prompt_input_yn () {
+	local DESC=$1
+	local VARNAME=$2
+	local DEFVALUE=${3^^}
+	CONFIRM_PROMPT+=("$VARNAME:${DESC% (*}")
+	if [ $PROMPT -gt 0 ]; then
+		echo -n "${BLUE}${_WHITE}${DESC} "
+		if [ "$DEFVALUE" == "Y" ]; then
+			echo -n "[Y/n]: "
+		elif [ "$DEFVALUE" == "N" ]; then
+			echo -n "[y/N]: "
+		else
+			echo -n "[y/n]: "
+		fi
+		local -n VAR="$VARNAME"
+		while [ -z "$VAR" ]; do
+			read -rs -N 1
+			if [ "$REPLY" == $'\n' ]; then
+				REPLY="$DEFVALUE"
+			fi
+			local CHOICE="${REPLY^^}"
+			if [ "$CHOICE" == "N" ]; then
+				echo "No"
+				VAR=0
+			elif [ "$CHOICE" == "Y" ]; then
+				echo "Yes"
+				VAR=1
+			fi
 		done
 		echo -n "${NORMAL}"
 		echo -ne "\e[2K"
@@ -149,7 +184,9 @@ floatme () {
 		echo "$DESC: ${!VAR}"
 	done
 	echo -n "${NORMAL}"
-	read -p "Continue? (y/N): " CONTINUE && [[ $CONTINUE == [yY] || $CONTINUE == [yY][eE][sS] ]] || exit 1
+
+	prompt_input_yn "Continue?" CONFIRM
+	[ $CONFIRM -eq 0 ] && exit 1
 
 	for PKG in $PKGS; do
 		echo "${BLUE}== Install $PKG ${NORMAL}"

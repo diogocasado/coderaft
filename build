@@ -23,6 +23,7 @@ STRIP_EMPTY_LINES=1
 
 check_dep () {
 	local DEP="$1"
+	local PKG
 	for PKG in $PKGS; do
 		if [ "${PKG,,}" == "$DEP" ]; then
 			return
@@ -34,6 +35,7 @@ check_dep () {
 
 check_deps () {
 	local DEPS="$@"
+	local DEP
 	for DEP in $DEPS; do
 		check_dep "$DEP"
 	done
@@ -68,6 +70,7 @@ build_print_platforms () {
 }
 
 build_print_dists () {
+	local DIST_FILE
 	for DIST_FILE in ${DIST_FILES[@]}; do
 		local DIST_NAME=${DIST_FILE%%.*}
 		local DIST_DESC=$(. "$DIST_DIR/$DIST_FILE" > /dev/null 2>&1; echo $DIST_DESC )
@@ -76,6 +79,7 @@ build_print_dists () {
 }
 
 build_print_rafts () {
+	local RAFT_FILE
 	for RAFT_FILE in ${RAFT_FILES[@]}; do
 		local RAFT_NAME=${RAFT_FILE%%.*}
 		local RAFT_DESC=$(. "$RAFT_DIR/$RAFT_FILE" > /dev/null 2>&1; echo $RAFT_DESC )
@@ -122,6 +126,7 @@ build_echo_file_comment () {
 }
 
 build_echo_file () {
+	local FILE
 	for FILE in "$@"; do
 		if [ -f "$FILE" ]; then
 			echo "Read $FILE"

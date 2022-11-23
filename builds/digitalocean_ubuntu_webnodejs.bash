@@ -54,7 +54,7 @@ if [ ! -z "$(command -v tput)" ]; then
 		_WHITE="$(tput setab 7)"
 	fi
 fi
-log_debug() {
+log_debug () {
 	if [ $VERBOSE -gt 0 ]; then
 		echo "${CYAN}(Debug) $@ ${NORMAL}"
 	fi
@@ -74,17 +74,53 @@ log_error () {
 	exit 1
 }
 prompt_input () {
-	CONFIRM_PROMPT+=("$2:${1% (*}")
+	local DESC=$1
+	local VARNAME=$2
+	local DEFVALUE=$3
+	CONFIRM_PROMPT+=("$VARNAME:${DESC% (*}")
 	if [ $PROMPT -gt 0 ]; then
 		echo -n "${BLUE}${_WHITE}"
-		while [ -z ${!2} ]; do
-			read -rp "$1: " $2
-			if [ ! -z "$3" ]; then
-				if [ "$3" != "null" ] && [ -z "${!2}" ]; then
-					local -n VAR="$2"
-					VAR="$3"
+		local -n VAR="$VARNAME"
+		while [ -z "$VAR" ]; do
+			read -r -p "$DESC: " $VARNAME
+			if [ -z "$VAR" ] && [ ! -z "$DEFVALUE" ]; then
+				if [ "${DEFVALUE^^}" == "NULL" ]; then
+					break
 				fi
-				break
+				VAR="$DEFVALUE"
+			fi
+		done
+		echo -n "${NORMAL}"
+		echo -ne "\e[2K"
+	fi
+}
+prompt_input_yn () {
+	local DESC=$1
+	local VARNAME=$2
+	local DEFVALUE=${3^^}
+	CONFIRM_PROMPT+=("$VARNAME:${DESC% (*}")
+	if [ $PROMPT -gt 0 ]; then
+		echo -n "${BLUE}${_WHITE}${DESC} "
+		if [ "$DEFVALUE" == "Y" ]; then
+			echo -n "[Y/n]: "
+		elif [ "$DEFVALUE" == "N" ]; then
+			echo -n "[y/N]: "
+		else
+			echo -n "[y/n]: "
+		fi
+		local -n VAR="$VARNAME"
+		while [ -z "$VAR" ]; do
+			read -rs -N 1
+			if [ "$REPLY" == $'\n' ]; then
+				REPLY="$DEFVALUE"
+			fi
+			local CHOICE="${REPLY^^}"
+			if [ "$CHOICE" == "N" ]; then
+				echo "No"
+				VAR=0
+			elif [ "$CHOICE" == "Y" ]; then
+				echo "Yes"
+				VAR=1
 			fi
 		done
 		echo -n "${NORMAL}"
@@ -148,7 +184,8 @@ floatme () {
 		echo "$DESC: ${!VAR}"
 	done
 	echo -n "${NORMAL}"
-	read -p "Continue? (y/N): " CONTINUE && [[ $CONTINUE == [yY] || $CONTINUE == [yY][eE][sS] ]] || exit 1
+	prompt_input_yn "Continue?" CONFIRM
+	[ $CONFIRM -eq 0 ] && exit 1
 	for PKG in $PKGS; do
 		echo "${BLUE}== Install $PKG ${NORMAL}"
 		invoke_func "${PKG,,}_install"
@@ -184,10 +221,10 @@ VLAN_SUBNET="10.132.0.0/16"
 platform_setup () {
 	prompt_input "DigitalOcean Token" DO_TOKEN null
 }
-# webnodejs.bash 7cb6af08 
+# webnodejs.bash af0234a7 
 RAFT_ID=webnodejs
 RAFT_DESC="A simple Node.js + MongoDB raft."
-PKGS="nftables nginx letsencrypt nodejs mongodb git paddle git-clone"
+PKGS="nftables nginx letsencrypt nodejs mongodb git git-clone paddle"
 # nftables.bash 9f606cfd 
 FIREWALL=nftables
 nftables_setup () {
@@ -622,75 +659,13 @@ git_install_ubuntu () {
 	fi
 }
 GIT=1
-PADDLE_COMMIT=
-# paddle.bash faf451c8 
-paddle_setup () {
-	prompt_input "Webhooks (discord)" PADDLE_WEBHOOKS "discord"
-	for WEBHOOK in "${PADDLE_WEBHOOKS}"; do
-		[ "$WEBHOOK" == "discord" ] && PADDLE_USE_DISCORD=1
-	done;
-	nginx_add_endpoint "/paddle" "http://unix:/run/paddle_http.sock"
-}
-paddle_install () {
-	PADDLE_DIR="/home/paddle"
-	if [ ! -e "$PADDLE_DIR" ]; then
-		git clone "https://github.com/diogocasado/coderaft-paddle" "$PADDLE_DIR"
-		if [ ! -z "$PADDLE_COMMIT" ]; then
-			cd $PADDLE_DIR
-			git reset --hard "$PADDLE_COMMIT"
-		fi
-		("$PADDLE_DIR/install")
-	else
-		echo "Repository found at $PADDLE_DIR"
-		cd $PADDLE_DIR
-		git log -n 1 --oneline
-		echo "${BOLD}Consider removing or 'git pull'${NORMAL}"
-	fi
-}
-paddle_finish () {
-	if [ ! -z "$SERVICE" ]; then
-		if [ ! -z "$PADDLE_USE_DISCORD" ]; then
-			prompt_input "Discord Url" PADDLE_DISCORD_URL
-		fi
-		echo "Generate paddle config"
-		log_debug_file "$PADDLE_DIR/local.js"
-		echo "$(paddle_gen_local_config)" > "$PADDLE_DIR/local.js"
-		systemctl start paddle
-		systemctl --no-pager -n5 status paddle
-	fi
-}
-paddle_gen_local_config () {
-	cat <<-EOF
-	exports.config = (config) => {
-	EOF
-	[ ! -z "$PADDLE_USE_DISCORD" ] && [ ! -z "$PADDLE_DISCORD_URL" ] && cat <<-EOF
-            config.discord.url = '$PADDLE_DISCORD_URL';
-	EOF
-	cat <<-EOF
-	    config.services.push({
-	        name: '$SERVICE',
-	        gitPath: '$GIT_CLONE_DIR',
-	        location: '$LOCATION',
-	        proxyPass: '$PROXY_PASS',
-	        publishStatsInterval: 60000,
-	EOF
-	[ ! -z "$PADDLE_USE_DISCORD" ] && [ ! -z "$PADDLE_DISCORD_URL" ] && cat <<-EOF
-	        discord: {
-	            url: config.discord.url
-	        }
-	EOF
-	cat <<-EOF
-	    });
-	}
-	EOF
-}
-GIT=1
 GIT_CLONE_DUMMY_COMMIT=
-# git-clone.bash 165fb4fc 
+# git-clone.bash f0859851 
 git_clone_setup () {
 	prompt_input "Git clone repository (dummy)" GIT_CLONE_REPOSITORY "https://github.com/diogocasado/coderaft-dummy.git"
 	if [ ! -z $GIT_CLONE_REPOSITORY ]; then
-		prompt_input "Repository dir (/home/dummy)" GIT_CLONE_DIR "/home/dummy"
+		GIT_CLONE_REPOSITORY_NAME=$(echo "$GIT_CLONE_REPOSITORY" | awk 'match($0, /.+\/([A-Za-z0-9\-_]+)\.git$/, g) {print g[1]}')
+		prompt_input "Repository dir (/home/${GIT_CLONE_REPOSITORY_NAME})" GIT_CLONE_DIR "/home/${GIT_CLONE_REPOSITORY_NAME}"
 		GIT_CLONE_COMMIT_DEFAULT="$GIT_CLONE_DUMMY_COMMIT"
 		if [ -z "$GIT_CLONE_COMMIT_DEFAULT" ]; then
 			GIT_CLONE_COMMIT_DEFAULT="null"
@@ -765,5 +740,113 @@ git_clone_gen_systemd_unit () {
 	WantedBy=multi-user.target
 	EOF
 }
-GIT=1
+GIT_CLONE=1
+PADDLE_COMMIT=
+# paddle.bash bb159d07 
+paddle_setup () {
+	prompt_input_yn "Configure Discord?" PADDLE_USE_DISCORD "y"
+	prompt_input_yn "Configure GitHub?" PADDLE_USE_GITHUB "y"
+	nginx_add_endpoint "/paddle" "http://unix:/run/paddle_http.sock"
+}
+paddle_install () {
+	PADDLE_DIR="/home/coderaft-paddle"
+	if [ ! -e "$PADDLE_DIR" ]; then
+		git clone "https://github.com/diogocasado/coderaft-paddle" "$PADDLE_DIR"
+		if [ ! -z "$PADDLE_COMMIT" ]; then
+			cd $PADDLE_DIR
+			git reset --hard "$PADDLE_COMMIT"
+		fi
+		("$PADDLE_DIR/install")
+	else
+		echo "Repository found at $PADDLE_DIR"
+		cd $PADDLE_DIR
+		git log -n 1 --oneline
+		echo "${BOLD}Consider removing or 'git pull'${NORMAL}"
+	fi
+}
+paddle_finish () {
+	if [ ! -z "$SERVICE" ]; then
+		if [ ! -z "$PADDLE_USE_DISCORD" ]; then
+			prompt_input "Discord Url" PADDLE_DISCORD_URL
+		fi
+		if [ ! -z "$PADDLE_USE_GITHUB" ]; then
+			PADDLE_GITHUB_DEF_URL_PATH="/$SERVICE"
+			prompt_input "GitHub Url Path (${PADDLE_GITHUB_DEF_URL_PATH})" PADDLE_GITHUB_URL_PATH "$PADDLE_GITHUB_DEF_URL_PATH"
+			prompt_input "GitHub Secret" PADDLE_GITHUB_SECRET
+			PADDLE_HAS_GIT_WEBHOOKS=1
+		fi
+		if [ ! -z "$PADDLE_HAS_GIT_WEBHOOKS" ]; then
+			prompt_input_yn "Use Git automation?" PADDLE_USE_GIT "y"
+			if [ ! -z "$GIT_CLONE" ]; then
+				PADDLE_GIT_PATH="$GIT_CLONE_REPOSITORY"
+				PADDLE_GIT_REPO="$GIT_CLONE_REPOSITORY_NAME"
+			else
+				prompt_input "Git Repo Path" PADDLE_GIT_PATH
+				PADDLE_GIT_ORIGIN=$(git -C ${PADDLE_GIT_PATH} config --get remote.origin.url)
+				PADDLE_GIT_REPO=$(basename -s .git $PADDLE_GIT_ORIGIN)
+			fi
+		else
+			PADDLE_USE_GIT=0
+		fi
+		if [ $PADDLE_USE_GIT -gt 0 ]; then
+			echo "Git repository ${BOLD}${PADDLE_GIT_REPO}${NORMAL}:"
+			prompt_input_yn "Perform git pull?" PADDLE_GIT_PULL "n"
+			prompt_input_yn "Restart after pull?" PADDLE_GIT_RESTART "n"
+		fi
+		echo "Generate paddle config"
+		log_debug_file "$PADDLE_DIR/local.js"
+		echo "$(paddle_gen_local_config)" > "$PADDLE_DIR/local.js"
+		systemctl start paddle
+		systemctl --no-pager -n5 status paddle
+	fi
+}
+paddle_gen_local_config () {
+	cat <<-EOF
+	exports.config = (config) => {
+	EOF
+	[ ! -z "$PADDLE_USE_DISCORD" ] && [ ! -z "$PADDLE_DISCORD_URL" ] && cat <<-EOF
+	    config.discord.url = '$PADDLE_DISCORD_URL';
+	EOF
+	cat <<-EOF
+	    config.services.push({
+	        name: '$SERVICE',
+	        path: '$GIT_CLONE_DIR',
+	        location: '$LOCATION',
+	        proxyPass: '$PROXY_PASS',
+	        publishStatsInterval: 60000,
+	EOF
+	[ ! -z "$PADDLE_USE_DISCORD" ] && cat <<-EOF
+	        discord: {
+	            url: config.discord.url,
+		    log: [ 'INFO', 'GIT-PUSH', 'ISSUE', 'ISSUE-COMMENT' ]
+	        },
+	EOF
+	[ ! -z "$PADDLE_USE_GITHUB" ] && cat <<-EOF
+	        github: {
+	            urlPath: '$PADDLE_GITHUB_URL_PATH',
+	            secret: '$PADDLE_GITHUB_SECRET'
+	        },
+	EOF
+	if [ $PADDLE_USE_GIT -gt 0 ]; then
+		PADDLE_GIT_PULL_BOOL="false"
+		if [ $PADDLE_GIT_PULL -gt 0 ]; then
+			PADDLE_GIT_PULL_BOOL="true"
+		fi
+		PADDLE_GIT_RESTART_BOOL="false"
+		if [ $PADDLE_GIT_RESTART -gt 0 ]; then
+			PADDLE_GIT_RESTART_BOOL="true"
+		fi
+		cat <<-EOF
+	        git: {
+	            pull: ${PADDLE_GIT_PULL_BOOL},
+	            restart: ${PADDLE_GIT_RESTART_BOOL}
+	        }
+		EOF
+	fi
+	cat <<-EOF
+	    });
+	}
+	EOF
+}
+PADDLE=1
 floatme
