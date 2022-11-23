@@ -659,10 +659,10 @@ git_install_ubuntu () {
 	fi
 }
 GIT=1
-GIT_CLONE_DUMMY_COMMIT=
-# git-clone.bash f0859851 
+GIT_CLONE_DUMMY_COMMIT=29fd4d716a799b3f7a32fca88b684e20b4f78aa3
+# git-clone.bash 0aa80be4 
 git_clone_setup () {
-	prompt_input "Git clone repository (dummy)" GIT_CLONE_REPOSITORY "https://github.com/diogocasado/coderaft-dummy.git"
+	prompt_input "Git clone repository (coderaft-dummy)" GIT_CLONE_REPOSITORY "https://github.com/diogocasado/coderaft-dummy.git"
 	if [ ! -z $GIT_CLONE_REPOSITORY ]; then
 		GIT_CLONE_REPOSITORY_NAME=$(echo "$GIT_CLONE_REPOSITORY" | awk 'match($0, /.+\/([A-Za-z0-9\-_]+)\.git$/, g) {print g[1]}')
 		prompt_input "Repository dir (/home/${GIT_CLONE_REPOSITORY_NAME})" GIT_CLONE_DIR "/home/${GIT_CLONE_REPOSITORY_NAME}"
@@ -741,8 +741,8 @@ git_clone_gen_systemd_unit () {
 	EOF
 }
 GIT_CLONE=1
-PADDLE_COMMIT=
-# paddle.bash bb159d07 
+PADDLE_COMMIT=4748074dc60b9d395f0785399d39ee29441f1382
+# paddle.bash 3ec9ce91 
 paddle_setup () {
 	prompt_input_yn "Configure Discord?" PADDLE_USE_DISCORD "y"
 	prompt_input_yn "Configure GitHub?" PADDLE_USE_GITHUB "y"
@@ -818,7 +818,7 @@ paddle_gen_local_config () {
 	[ ! -z "$PADDLE_USE_DISCORD" ] && cat <<-EOF
 	        discord: {
 	            url: config.discord.url,
-		    log: [ 'INFO', 'GIT-PUSH', 'ISSUE', 'ISSUE-COMMENT' ]
+	            log: [ 'INFO', 'GIT-PUSH', 'ISSUE', 'ISSUE-COMMENT' ]
 	        },
 	EOF
 	[ ! -z "$PADDLE_USE_GITHUB" ] && cat <<-EOF

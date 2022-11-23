@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 git_get_ver () {
 	local OUT=$1
 	local N=$2
@@ -34,5 +32,4 @@ else
 	echo "Please upgrade git > 2.9.0"
 	git --version
 fi
-
 

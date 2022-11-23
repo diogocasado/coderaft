@@ -18,7 +18,7 @@ RAFT_FILES=$(ls -1 $RAFT_DIR)
 
 COMMIT=$(git rev-parse --short HEAD)
 
-MODULES_SYNC_COMMIT=0
+MODULES_SYNC_COMMIT=1
 STRIP_EMPTY_LINES=1
 
 check_dep () {
@@ -42,7 +42,7 @@ check_deps () {
 }
 
 build_check_dirty_submodules () {
-	local DIRTY=$(git submodule status | awk '/^[^0-9]/ { print "x" }')
+	local DIRTY=$(git submodule status | awk '/^[^0-9 ]/ { print "x" }')
 	if [ ! -z "$DIRTY" ]; then
 		echo "Commit the following submodules before building:"
 		git submodule status | awk '/^[^0-9]/ { print $2 }'
