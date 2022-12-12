@@ -11,3 +11,17 @@ dist_init () {
 	APT_SOURCES_DIR=/etc/apt/sources.list.d
 	KEYRING_DIR="/usr/share/keyrings"
 }
+
+dist_prepare () {
+	echo "Updating packages..."
+	export DEBIAN_FRONTEND=noninteractive
+	apt-get update
+	apt-get upgrade -y
+}
+
+dist_finish () {
+	echo "Cleaning up..."
+	apt-get autoremove -y
+	apt-get autoclean
+}
+

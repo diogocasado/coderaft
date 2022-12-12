@@ -188,6 +188,8 @@ floatme () {
 	prompt_input_yn "Continue?" CONFIRM
 	[ $CONFIRM -eq 0 ] && exit 1
 
+	invoke_func "dist_prepare"
+
 	for PKG in $PKGS; do
 		echo "${BLUE}== Install $PKG ${NORMAL}"
 		invoke_func "${PKG,,}_install"

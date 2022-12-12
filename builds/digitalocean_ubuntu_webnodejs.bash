@@ -186,6 +186,7 @@ floatme () {
 	echo -n "${NORMAL}"
 	prompt_input_yn "Continue?" CONFIRM
 	[ $CONFIRM -eq 0 ] && exit 1
+	invoke_func "dist_prepare"
 	for PKG in $PKGS; do
 		echo "${BLUE}== Install $PKG ${NORMAL}"
 		invoke_func "${PKG,,}_install"
@@ -201,7 +202,7 @@ floatme () {
 	invoke_func "raft_finish"
 	echo "Done."
 }
-# ubuntu.bash f42f1ac2 
+# ubuntu.bash bbbe387d 
 DIST_ID=ubuntu
 DIST_NAME=Ubuntu
 DIST_DESC="Ubuntu is the modern, open source operating system on Linux for the enterprise server, desktop, cloud, and IoT."
@@ -212,6 +213,17 @@ dist_init () {
 	DIST_VER_MINOR=$(echo $DIST_VER | awk 'match($0, /[0-9]*\.([0-9]*)/, m) { print m[1] }')
 	APT_SOURCES_DIR=/etc/apt/sources.list.d
 	KEYRING_DIR="/usr/share/keyrings"
+}
+dist_prepare () {
+	echo "Updating packages..."
+	export DEBIAN_FRONTEND=noninteractive
+	apt-get update
+	apt-get upgrade -y
+}
+dist_finish () {
+	echo "Cleaning up..."
+	apt-get autoremove -y
+	apt-get autoclean
 }
 # digitalocean.bash 305013d6 
 PLAT_ID=do
@@ -462,18 +474,18 @@ nginx_install_ubuntu () {
 	fi
 }
 NGINX=1
-# letsencrypt.bash 2481e013 
+# letsencrypt.bash 1bf5d1e6 
 SSLCERT=letsencrypt
-_snap_core_get_ver () {
+certbot_snap_core_get_ver () {
 	echo $(snap list | awk '$1 == "core" { print $2 }')
 }
-_certbot_get_ver () {
+certbot_get_ver () {
 	local OUT=$(certbot --version 2>&1)
         if [ $? -eq 0 ]; then
                 echo $(echo $OUT | awk 'match($0, /([0-9]+\.[0-9]+\.[0-9]+)/, g) {print g[1]}')
         fi
 }
-_certbot_dns_do_get_ver () {
+certbot_dns_do_get_ver () {
 	echo $(snap list | awk '$1 == "certbot-dns-digitalocean" { print $2 }')
 }
 letsencrypt_setup () {
@@ -487,15 +499,15 @@ letsencrypt_setup () {
 }
 letsencrypt_install () {
 	echo "Setup snap"
-	SNAP_CORE_VER=$(_snap_core_get_ver)
+	SNAP_CORE_VER=$(certbot_snap_core_get_ver)
 	if [ -z "$SNAP_CORE_VER" ]; then
 		snap install core
 	else
 		SNAP_CORE_REFRESH=1
 	fi
-	SNAP_CORE_VER=$(_snap_core_get_ver)
+	SNAP_CORE_VER=$(certbot_snap_core_get_ver)
 	echo "Probing certbot..."
-	CERTBOT_VER=$(_certbot_get_ver)
+	CERTBOT_VER=$(certbot_get_ver)
 	if [ -z "$CERTBOT_VER" ]; then
 	        echo "Installing certbot"
 		if [ ! -z "$SNAP_CORE_REFRESH" ]; then
@@ -503,13 +515,13 @@ letsencrypt_install () {
 		fi
 		snap install --classic certbot
 		snap set certbot trust-plugin-with-root=ok
-	       	CERTBOT_VER=$(_certbot_get_ver)
+	       	CERTBOT_VER=$(certbot_get_ver)
 	fi
-	CERTBOT_DNS_DO_VER=$(_certbot_dns_do_get_ver)
-	if [ -z "$CERTBOT_VER" ] && [ "$PLAT_ID" = "do" ]; then
+	CERTBOT_DNS_DO_VER=$(certbot_dns_do_get_ver)
+	if [ -z "$CERTBOT_DNS_DO_VER" ] && [ "$PLAT_ID" = "do" ]; then
 	        echo "Installing certbot-dns-digitalocean"
 		snap install certbot-dns-digitalocean
-		CERTBOT_DNS_DO_VER=$(_certbot_dns_do_get_ver)
+		CERTBOT_DNS_DO_VER=$(certbot_dns_do_get_ver)
 	fi
 	if [ -z "$CERTBOT_VER" ]; then
 	        echo "(Error) Could not probe certbot version."

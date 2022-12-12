@@ -1,18 +1,18 @@
 
 SSLCERT=letsencrypt
 
-_snap_core_get_ver () {
+certbot_snap_core_get_ver () {
 	echo $(snap list | awk '$1 == "core" { print $2 }')
 }
 
-_certbot_get_ver () {
+certbot_get_ver () {
 	local OUT=$(certbot --version 2>&1)
         if [ $? -eq 0 ]; then
                 echo $(echo $OUT | awk 'match($0, /([0-9]+\.[0-9]+\.[0-9]+)/, g) {print g[1]}')
         fi
 }
 
-_certbot_dns_do_get_ver () {
+certbot_dns_do_get_ver () {
 	echo $(snap list | awk '$1 == "certbot-dns-digitalocean" { print $2 }')
 }
 
@@ -33,16 +33,16 @@ letsencrypt_install () {
 
 	echo "Setup snap"
 
-	SNAP_CORE_VER=$(_snap_core_get_ver)
+	SNAP_CORE_VER=$(certbot_snap_core_get_ver)
 	if [ -z "$SNAP_CORE_VER" ]; then
 		snap install core
 	else
 		SNAP_CORE_REFRESH=1
 	fi
-	SNAP_CORE_VER=$(_snap_core_get_ver)
+	SNAP_CORE_VER=$(certbot_snap_core_get_ver)
 
 	echo "Probing certbot..."
-	CERTBOT_VER=$(_certbot_get_ver)
+	CERTBOT_VER=$(certbot_get_ver)
 
 	if [ -z "$CERTBOT_VER" ]; then
 	        echo "Installing certbot"
@@ -52,15 +52,15 @@ letsencrypt_install () {
 		snap install --classic certbot
 		snap set certbot trust-plugin-with-root=ok
 
-	       	CERTBOT_VER=$(_certbot_get_ver)
+	       	CERTBOT_VER=$(certbot_get_ver)
 	fi
 
-	CERTBOT_DNS_DO_VER=$(_certbot_dns_do_get_ver)
-	if [ -z "$CERTBOT_VER" ] && [ "$PLAT_ID" = "do" ]; then
+	CERTBOT_DNS_DO_VER=$(certbot_dns_do_get_ver)
+	if [ -z "$CERTBOT_DNS_DO_VER" ] && [ "$PLAT_ID" = "do" ]; then
 	        echo "Installing certbot-dns-digitalocean"
 		snap install certbot-dns-digitalocean
 
-		CERTBOT_DNS_DO_VER=$(_certbot_dns_do_get_ver)
+		CERTBOT_DNS_DO_VER=$(certbot_dns_do_get_ver)
 	fi
 
 	if [ -z "$CERTBOT_VER" ]; then
