@@ -23,5 +23,6 @@ dist_finish () {
 	echo "Cleaning up..."
 	apt-get autoremove -y
 	apt-get autoclean
+	echo "${BOLD}Please reboot.${NORMAL}"
 }
 

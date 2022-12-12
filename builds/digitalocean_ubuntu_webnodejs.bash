@@ -202,7 +202,7 @@ floatme () {
 	invoke_func "raft_finish"
 	echo "Done."
 }
-# ubuntu.bash bbbe387d 
+# ubuntu.bash f541fc37 
 DIST_ID=ubuntu
 DIST_NAME=Ubuntu
 DIST_DESC="Ubuntu is the modern, open source operating system on Linux for the enterprise server, desktop, cloud, and IoT."
@@ -224,6 +224,7 @@ dist_finish () {
 	echo "Cleaning up..."
 	apt-get autoremove -y
 	apt-get autoclean
+	echo "${BOLD}Please reboot.${NORMAL}"
 }
 # digitalocean.bash 305013d6 
 PLAT_ID=do
@@ -672,7 +673,7 @@ git_install_ubuntu () {
 }
 GIT=1
 GIT_CLONE_DUMMY_COMMIT=29fd4d716a799b3f7a32fca88b684e20b4f78aa3
-# git-clone.bash 0aa80be4 
+# git-clone.bash bc0bd1cd 
 git_clone_setup () {
 	prompt_input "Git clone repository (coderaft-dummy)" GIT_CLONE_REPOSITORY "https://github.com/diogocasado/coderaft-dummy.git"
 	if [ ! -z $GIT_CLONE_REPOSITORY ]; then
@@ -729,6 +730,7 @@ git_clone_unwrap () {
 		echo "$(git_clone_gen_systemd_unit)" > "$SYSTEMD_PATH/$SERVICE.service"
 		systemctl start $SERVICE
 		systemctl --no-pager -n5 status $SERVICE
+		systemctl enable $SERVICE
 	fi
 }
 git_clone_probe_start_nodejs () {
@@ -754,7 +756,7 @@ git_clone_gen_systemd_unit () {
 }
 GIT_CLONE=1
 PADDLE_COMMIT=4748074dc60b9d395f0785399d39ee29441f1382
-# paddle.bash 3ec9ce91 
+# paddle.bash 793fb45e 
 paddle_setup () {
 	prompt_input_yn "Configure Discord?" PADDLE_USE_DISCORD "y"
 	prompt_input_yn "Configure GitHub?" PADDLE_USE_GITHUB "y"
@@ -810,6 +812,7 @@ paddle_finish () {
 		echo "$(paddle_gen_local_config)" > "$PADDLE_DIR/local.js"
 		systemctl start paddle
 		systemctl --no-pager -n5 status paddle
+		systemctl enable paddle
 	fi
 }
 paddle_gen_local_config () {

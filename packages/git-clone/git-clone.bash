@@ -69,6 +69,7 @@ git_clone_unwrap () {
 		echo "$(git_clone_gen_systemd_unit)" > "$SYSTEMD_PATH/$SERVICE.service"
 		systemctl start $SERVICE
 		systemctl --no-pager -n5 status $SERVICE
+		systemctl enable $SERVICE
 	fi
 }
 

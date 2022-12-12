@@ -65,6 +65,7 @@ paddle_finish () {
 
 		systemctl start paddle
 		systemctl --no-pager -n5 status paddle
+		systemctl enable paddle
 	fi
 }
 
