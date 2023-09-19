@@ -238,7 +238,7 @@ platform_setup () {
 RAFT_ID=webnodejs
 RAFT_DESC="A simple Node.js + MongoDB raft."
 PKGS="nftables nginx letsencrypt nodejs mongodb git git-clone paddle"
-# nftables.bash 9f606cfd 
+# nftables.bash 1da77282 
 FIREWALL=nftables
 nftables_setup () {
 	prompt_input "VLAN ifname" VLAN_IFACE
@@ -250,7 +250,6 @@ nftables_setup () {
 }
 nftables_gen_conf () {
 	cat <<-EOF
-	#!/usr/sbin/nft -f
 	flush ruleset
 	table inet coderaft {
 	        set ban_v4 {
@@ -342,7 +341,7 @@ nftables_gen_conf () {
 	}
 	EOF
 }
-# nftables-ubuntu.bash e8b081de 
+# nftables-ubuntu.bash d5026f4d 
 nftables_setup_ubuntu () {
 	if [ $DIST_VER_MAJOR -lt 22 ]; then
 		echo "(Error) Requires Ubuntu 22 or more recent."
@@ -354,18 +353,25 @@ nftables_install () {
 	echo "Generating config"
 	nftables_gen_conf > $NFTABLES_CONF_TMPFILE
 	log_debug_file $NFTABLES_CONF_TMPFILE
+	nftables_gen_startup > /etc/network/if-pre-up.d/nftables
+	chmod +x /etc/network/if-pre-up.d/nftables
 	echo "Testing config"
 	nft -c -f $NFTABLES_CONF_TMPFILE
 	if [ $? -eq 0 ]; then
 		echo "Success"
 		cp --backup=t $NFTABLES_CONF_TMPFILE /etc/nftables.conf
-		chmod +x /etc/nftables.conf
 		nft -f /etc/nftables.conf
 	else
 		echo "(Error) While testing config"
 		exit 1
 	fi
 	rm $NFTABLES_CONF_TMPFILE
+}
+nftables_gen_startup () {
+	echo <<-EOF
+	#!/bin/sh
+	/usr/sbin/nft -f /etc/nftables.conf
+	EOF
 }
 NFTABLES=1
 # nginx.bash 68cf2bee 

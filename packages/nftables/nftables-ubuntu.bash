@@ -15,6 +15,9 @@ nftables_install () {
 	nftables_gen_conf > $NFTABLES_CONF_TMPFILE
 	log_debug_file $NFTABLES_CONF_TMPFILE
 
+	nftables_gen_startup > /etc/network/if-pre-up.d/nftables
+	chmod +x /etc/network/if-pre-up.d/nftables
+
 	echo "Testing config"
 	nft -c -f $NFTABLES_CONF_TMPFILE
 
@@ -22,7 +25,6 @@ nftables_install () {
 		echo "Success"
 
 		cp --backup=t $NFTABLES_CONF_TMPFILE /etc/nftables.conf
-		chmod +x /etc/nftables.conf
 		nft -f /etc/nftables.conf
 	else
 		echo "(Error) While testing config"
@@ -30,4 +32,11 @@ nftables_install () {
 	fi
 
 	rm $NFTABLES_CONF_TMPFILE
+}
+
+nftables_gen_startup () {
+	echo <<-EOF
+	#!/bin/sh
+	/usr/sbin/nft -f /etc/nftables.conf
+	EOF
 }

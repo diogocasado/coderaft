@@ -15,8 +15,6 @@ nftables_setup () {
 nftables_gen_conf () {
 
 	cat <<-EOF
-	#!/usr/sbin/nft -f
-
 	flush ruleset
 
 	table inet coderaft {
