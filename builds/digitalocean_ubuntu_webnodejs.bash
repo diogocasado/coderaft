@@ -202,7 +202,7 @@ floatme () {
 	invoke_func "raft_finish"
 	echo "Done."
 }
-# ubuntu.bash f541fc37 
+# ubuntu.bash af0c18b4 
 DIST_ID=ubuntu
 DIST_NAME=Ubuntu
 DIST_DESC="Ubuntu is the modern, open source operating system on Linux for the enterprise server, desktop, cloud, and IoT."
@@ -212,7 +212,7 @@ dist_init () {
 	DIST_VER_MAJOR=$(echo $DIST_VER | awk 'match($0, /([0-9]*)\./, m) { print m[1] }')
 	DIST_VER_MINOR=$(echo $DIST_VER | awk 'match($0, /[0-9]*\.([0-9]*)/, m) { print m[1] }')
 	APT_SOURCES_DIR=/etc/apt/sources.list.d
-	KEYRING_DIR="/usr/share/keyrings"
+	APT_KEYRINGS_DIR=/etc/apt/keyrings
 }
 dist_prepare () {
 	echo "Updating packages..."
@@ -586,14 +586,18 @@ nodejs_get_ver () {
 		echo $(echo $OUT | awk 'match($0, /([0-9]+\.[0-9]+\.[0-9]+)/, g) {print g[1]}')
 	fi
 }
-# nodejs-ubuntu.bash 3392fbaf 
+# nodejs-ubuntu.bash 0aa9e197 
 nodejs_install_ubuntu () {
-	NODEJS_APT_SOURCE_FILE="${APT_SOURCES_DIR}/nodesource.list"
-	if [ ! -f "$NODEJS_APT_SOURCE_FILE" ]; then
-		echo "Fetching nodesource script"
-		curl -fsSL https://deb.nodesource.com/setup_${NODEJS_PKG_VER} | bash -
-	else
-		echo "Nodesource repository already added"
+	NODESOURCE_KEY_URL="https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key"
+	NODESOURCE_KEY_FILE="${APT_KEYRINGS_DIR}/nodesource.gpg"
+	if [ ! -f "$NODESOURCE_KEY_FILE" ]; then
+		echo "Importing nodesource repository public keys"
+		curl -fsSL ${NODESOURCE_KEY_URL} | gpg --dearmor -o ${NODESOURCE_KEY_FILE}
+	fi
+	NODESOURCE_APT_SOURCE_FILE="${APT_SOURCES_DIR}/nodesource.list"
+	if [ ! -f "$NODESOURCE_APT_SOURCE_FILE" ]; then
+		echo "Adding nodesource repo"
+		echo "deb [signed-by=${NODESOURCE_KEY_FILE}] https://deb.nodesource.com/node_${NODEJS_PKG_VER} nodistro main" > $NODESOURCE_APT_SOURCE_FILE
 	fi
 	if [ -z "$NODEJS_VER" ]; then
 		apt-get install -y nodejs
@@ -619,18 +623,18 @@ mongodb_get_ver () {
 		echo $(echo $OUT | awk 'NR==1 && match($0, /([0-9]+\.[0-9]+\.[0-9]+)/, g) {print g[1]}')
 	fi
 }
-# mongodb-ubuntu.bash 38be0936 
+# mongodb-ubuntu.bash 405a9f65 
 mongodb_install_ubuntu () {
+	MONGODB_KEY_FILE="$APT_KEYRINGS_DIR/mongodb.gpg"
 	MONGODB_APT_SOURCE_FILE="$APT_SOURCES_DIR/mongodb-org-${MONGODB_PKG_VER}.list"
-	MONGODB_KEY_FILE="$KEYRING_DIR/mongodb.gpg"
 	if [ ! -f "$MONGODB_APT_SOURCE_FILE" ]; then
 		echo "Importing repository public keys"
-		curl -sL https://www.mongodb.org/static/pgp/server-${MONGODB_PKG_VER}.asc | gpg --dearmor | tee $MONGODB_KEY_FILE >/dev/null
+		curl -fsSL https://www.mongodb.org/static/pgp/server-${MONGODB_PKG_VER}.asc | gpg --dearmor -o $MONGODB_KEY_FILE
 		if [ "$DIST_CODENAME" == "jammy" ]; then
 			log_warn "Adding impish-security for libssl1.1 compat"
 			echo "deb http://old-releases.ubuntu.com/ubuntu impish-security main" > $APT_SOURCES_DIR/impish-security.list
 			log_warn "Adding repository source ubuntu/focal"
-			echo "deb [signed-by=$MONGODB_KEY_FILE] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/${MONGODB_PKG_VER} multiverse" > $MONGODB_APT_SOURCE_FILE
+			echo "deb [signed-by=${MONGODB_KEY_FILE}] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/${MONGODB_PKG_VER} multiverse" > $MONGODB_APT_SOURCE_FILE
 		else
 			echo "Adding repository source ubuntu/$DIST_CODENAME"
 			echo "deb [signed-by=$MONGODB_KEY_FILE] https://repo.mongodb.org/apt/ubuntu ${DIST_CODENAME}/mongodb-org/${MONGODB_PKG_VER} multiverse" > $MONGODB_APT_SOURCE_FILE

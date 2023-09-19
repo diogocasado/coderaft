@@ -1,18 +1,18 @@
 
 mongodb_install_ubuntu () {
 
+	MONGODB_KEY_FILE="$APT_KEYRINGS_DIR/mongodb.gpg"
 	MONGODB_APT_SOURCE_FILE="$APT_SOURCES_DIR/mongodb-org-${MONGODB_PKG_VER}.list"
-	MONGODB_KEY_FILE="$KEYRING_DIR/mongodb.gpg"
 
 	if [ ! -f "$MONGODB_APT_SOURCE_FILE" ]; then
 		echo "Importing repository public keys"
-		curl -sL https://www.mongodb.org/static/pgp/server-${MONGODB_PKG_VER}.asc | gpg --dearmor | tee $MONGODB_KEY_FILE >/dev/null
+		curl -fsSL https://www.mongodb.org/static/pgp/server-${MONGODB_PKG_VER}.asc | gpg --dearmor -o $MONGODB_KEY_FILE
 
 		if [ "$DIST_CODENAME" == "jammy" ]; then
 			log_warn "Adding impish-security for libssl1.1 compat"
 			echo "deb http://old-releases.ubuntu.com/ubuntu impish-security main" > $APT_SOURCES_DIR/impish-security.list
 			log_warn "Adding repository source ubuntu/focal"
-			echo "deb [signed-by=$MONGODB_KEY_FILE] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/${MONGODB_PKG_VER} multiverse" > $MONGODB_APT_SOURCE_FILE
+			echo "deb [signed-by=${MONGODB_KEY_FILE}] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/${MONGODB_PKG_VER} multiverse" > $MONGODB_APT_SOURCE_FILE
 		else
 			echo "Adding repository source ubuntu/$DIST_CODENAME"
 			echo "deb [signed-by=$MONGODB_KEY_FILE] https://repo.mongodb.org/apt/ubuntu ${DIST_CODENAME}/mongodb-org/${MONGODB_PKG_VER} multiverse" > $MONGODB_APT_SOURCE_FILE

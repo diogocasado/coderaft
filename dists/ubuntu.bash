@@ -9,7 +9,7 @@ dist_init () {
 	DIST_VER_MAJOR=$(echo $DIST_VER | awk 'match($0, /([0-9]*)\./, m) { print m[1] }')
 	DIST_VER_MINOR=$(echo $DIST_VER | awk 'match($0, /[0-9]*\.([0-9]*)/, m) { print m[1] }')
 	APT_SOURCES_DIR=/etc/apt/sources.list.d
-	KEYRING_DIR="/usr/share/keyrings"
+	APT_KEYRINGS_DIR=/etc/apt/keyrings
 }
 
 dist_prepare () {
